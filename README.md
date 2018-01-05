@@ -84,6 +84,18 @@ Retrieves the ID of a service given its name.
  $
 ```
 
+### id_of_env
+
+```
+Usage: ./gaucho id_of_env <environment_name>
+
+Retrieves the ID of a environment given its name.
+
+Required Arguments:
+
+  environment_name   The name of the environment
+```
+
 ### start_service
 
 ```
