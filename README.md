@@ -219,6 +219,54 @@ Options:
    --timeout            How many seconds to wait until get back prompt on deactivation
 ```
 
+### remove command
+
+```
+Usage: ./gaucho remove <service_id>
+
+Remove the given *service id*.
+
+Required Arguments:
+
+  service_id   The ID of the service to perform the command on.
+
+Options:
+
+   --timeout            How many seconds to wait until get back prompt on remove
+```
+
+### deactivate environment command
+
+```
+Usage: ./gaucho deactivate_env <environment_id>
+
+Deactivate the given *environment id*.
+
+Required Arguments:
+
+  environment_id   The ID of the environment to perform the command on.
+
+Options:
+
+   --timeout            How many seconds to wait until get back prompt on deactivation
+```
+
+### remove environment command
+
+```
+Usage: ./gaucho remove_env <environment_id>
+
+Remove the given *environment id*.
+
+Required Arguments:
+
+  environment_id   The ID of the environment to perform the command on.
+
+Options:
+
+   --timeout            How many seconds to wait until get back prompt on remove
+```
+
 ### Get service's state
 
 ```

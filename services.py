@@ -10,6 +10,7 @@ from BaseHTTPServer import HTTPServer
 
 HOST = "http://rancher.local:8080/v1"
 URL_SERVICE = "/services/"
+URL_ENVIRONMENT = "/projects/"
 USERNAME = "userid"
 PASSWORD = "password"
 kwargs = {}
@@ -25,6 +26,14 @@ def post(url, data=""):
       r = requests.post(url, data=json.dumps(data), auth=(USERNAME, PASSWORD), **kwargs)
    else:
       r = requests.post(url, data="", auth=(USERNAME, PASSWORD), **kwargs)
+   r.raise_for_status()
+   return r.json()
+
+def delete(url, data=""):
+   if data:
+      r = requests.delete(url, data=json.dumps(data), auth=(USERNAME, PASSWORD), **kwargs)
+   else:
+      r = requests.delete(url, data="", auth=(USERNAME, PASSWORD), **kwargs)
    r.raise_for_status()
    return r.json()
 
@@ -66,6 +75,17 @@ def id_of (name=""):
 
    service = get(HOST + "/services?name=" + name).json()
    return service['data'][0]['id']
+
+#
+# Converts a environment name into an ID
+#
+@baker.command(params={"name": "The name of the environment to lookup."})
+def id_of_env (name=""):
+   """Retrieves the ID of a project, given its name.
+   """
+
+   environment = get(HOST + "/project?name=" + name).json()
+   return environment['data'][0]['id']
 
 #
 # Start containers within a service (e.g. for Start Once containers).
@@ -329,7 +349,7 @@ def rollback(service_id, timeout=60):
 #
 # Activate a service.
 #
-@baker.command(params={"service_id": "The ID of the service to deactivate.",
+@baker.command(params={"service_id": "The ID of the service to activate.",
                         "timeout": "How many seconds to wait until an upgrade fails"})
 def activate (service_id, timeout=60):
    """Activate the containers of a given service.
@@ -338,14 +358,14 @@ def activate (service_id, timeout=60):
    r = get(HOST + URL_SERVICE + service_id)
    current_service_config = r.json()
 
-   # can't deactivate a service if it's not in active state
+   # can't activate a service if it's not in inactive state
    if current_service_config['state'] != "inactive":
       print "Service cannot be deactivated due to its current state: %s" % current_service_config['state']
       sys.exit(1)
 
    post(current_service_config['actions']['activate'], "");
 
-   # Wait deactivation to finish
+   # Wait Activation to finish
    sleep_count = 0
    while current_service_config['state'] != "active" and sleep_count < timeout // 2:
       print "Waiting for activation to finish..."
@@ -368,7 +388,7 @@ def deactivate (service_id, timeout=60):
    current_service_config = r.json()
 
    # can't deactivate a service if it's not in active state
-   if current_service_config['state'] != "active":
+   if current_service_config['state'] != "active" and current_service_config['state'] != "updating-active":
       print "Service cannot be deactivated due to its current state: %s" % current_service_config['state']
       sys.exit(1)
 
@@ -383,6 +403,89 @@ def deactivate (service_id, timeout=60):
       current_service_config = r.json()
       sleep_count += 1
 
+#
+# Deactivate a env.
+#
+@baker.command(params={"environment_id": "The ID of the environment to deactivate.",
+                        "timeout": "How many seconds to wait until an upgrade fails"})
+def deactivate_env (environment_id, timeout=60):
+   """Stops the environment
+   """
+
+   r = get(HOST + URL_ENVIRONMENT + environment_id )
+   current_environment_config = r.json()
+
+   # can't deactivate a service if it's not in active state
+   if current_environment_config['state'] != "active":
+      print "Environment cannot be deactivated due to its current state: %s" % current_environment_config['state']
+      sys.exit(1)
+
+   post(current_environment_config['actions']['deactivate'], "");
+
+   # Wait deactivation to finish
+   sleep_count = 0
+   while current_environment_config['state'] != "inactive" and sleep_count < timeout // 2:
+      print "Waiting for deactivation to finish..."
+      time.sleep (2)
+      r = get(HOST + URL_ENVIRONMENT + environment_id)
+      current_environment_config = r.json()
+      sleep_count += 1
+
+#
+# Delete a env.
+#
+@baker.command(params={"environment_id": "The ID of the environment to delete.",
+                        "timeout": "How many seconds to wait until an upgrade fails"})
+def delete_env (environment_id, timeout=60):
+   """Stops the environment
+   """
+
+   r = get(HOST + URL_ENVIRONMENT + environment_id )
+   current_environment_config = r.json()
+
+   # can't deactivate a service if it's not in active state
+   if current_environment_config['state'] != "inactive":
+      print "Environment cannot be deactivated due to its current state: %s" % current_environment_config['state']
+      sys.exit(1)
+
+   delete(current_environment_config['actions']['delete'], "");
+
+   # Wait deactivation to finish
+   sleep_count = 0
+   while current_environment_config['state'] != "removed" and sleep_count < timeout // 2:
+      print "Waiting for delete to finish..."
+      time.sleep (2)
+      r = get(HOST + URL_ENVIRONMENT + environment_id)
+      current_environment_config = r.json()
+      sleep_count += 1
+
+#
+# Remove a service.
+#
+@baker.command(params={"service_id": "The ID of the service to remove.",
+                        "timeout": "How many seconds to wait until an upgrade fails"})
+def remove (service_id, timeout=60):
+   """Remove the service
+   """
+
+   r = get(HOST + URL_SERVICE + service_id)
+   current_service_config = r.json()
+
+   # can't remove a service if it's not in inactive state
+   if current_service_config['state'] != "inactive":
+      print "Service cannot be removed due to its current state: %s" % current_service_config['state']
+      sys.exit(1)
+
+   post(current_service_config['actions']['remove'], "");
+
+   # Wait remove to finish
+   sleep_count = 0
+   while current_service_config['state'] != "removed" and sleep_count < timeout // 2:
+      print "Waiting for remove to finish..."
+      time.sleep (2)
+      r = get(HOST + URL_SERVICE + service_id)
+      current_service_config = r.json()
+      sleep_count += 1
 
 
 #
