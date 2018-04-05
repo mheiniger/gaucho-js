@@ -68,13 +68,19 @@ def query(service_id=""):
 #
 # Converts a service name into an ID
 #
-@baker.command(params={"name": "The name of the service to lookup."})
-def id_of (name=""):
+@baker.command(params={
+                        "name": "The name of the service to lookup.",
+                        "newest": "From list of IDs, return newest (optional)"})
+def id_of (name="", newest=False):
    """Retrieves the ID of a service, given its name.
    """
+   if newest:
+    index = -1
+   else:
+    index = 0
 
    service = get(HOST + "/services?name=" + name).json()
-   return service['data'][0]['id']
+   return service['data'][index]['id']
 
 #
 # Converts a environment name into an ID
