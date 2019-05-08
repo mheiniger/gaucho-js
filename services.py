@@ -6,7 +6,7 @@ import sys
 import time
 import websocket
 import base64
-from BaseHTTPServer import HTTPServer
+from http.server import HTTPServer
 
 HOST = "http://rancher.local:8080/v1"
 URL_SERVICE = "/services/"
@@ -17,23 +17,23 @@ kwargs = {}
 
 # HTTP
 def get(url):
-   r = requests.get(url, auth=(USERNAME, PASSWORD), **kwargs)
+   r = requests.get(url, auth=(USERNAME, PASSWORD))
    r.raise_for_status()
    return r
 
 def post(url, data=""):
    if data:
-      r = requests.post(url, data=json.dumps(data), auth=(USERNAME, PASSWORD), **kwargs)
+      r = requests.post(url, data=json.dumps(data), auth=(USERNAME, PASSWORD))
    else:
-      r = requests.post(url, data="", auth=(USERNAME, PASSWORD), **kwargs)
+      r = requests.post(url, data="", auth=(USERNAME, PASSWORD))
    r.raise_for_status()
    return r.json()
 
 def delete(url, data=""):
    if data:
-      r = requests.delete(url, data=json.dumps(data), auth=(USERNAME, PASSWORD), **kwargs)
+      r = requests.delete(url, data=json.dumps(data), auth=(USERNAME, PASSWORD))
    else:
-      r = requests.delete(url, data="", auth=(USERNAME, PASSWORD), **kwargs)
+      r = requests.delete(url, data="", auth=(USERNAME, PASSWORD))
    r.raise_for_status()
    return r.json()
 
@@ -46,13 +46,13 @@ def ws(url):
 
 # Helper
 def print_json(data):
-   print json.dumps(data, sort_keys=True, indent=3, separators=(',', ': '))
+   print(json.dumps(data, sort_keys=True, indent=3, separators=(',', ': ')))
 
 
 #
 # Query the service configuration.
 #
-@baker.command(default=True, params={"service_id": "The ID of the service to read (optional)"})
+#@baker.command(default=True, params={"service_id": "The ID of the service to read (optional)"})
 def query(service_id=""):
    """Retrieves the service information.
 
@@ -68,9 +68,9 @@ def query(service_id=""):
 #
 # Converts a service name into an ID
 #
-@baker.command(params={
-                        "name": "The name of the service to lookup.",
-                        "newest": "From list of IDs, return newest (optional)"})
+#@baker.command(params={
+#                        "name": "The name of the service to lookup.",
+#                        "newest": "From list of IDs, return newest (optional)"})
 def id_of (name="", newest=False):
    """Retrieves the ID of a service, given its name.
    """
@@ -85,7 +85,7 @@ def id_of (name="", newest=False):
 #
 # Converts a environment name into an ID
 #
-@baker.command(params={"name": "The name of the environment to lookup."})
+#@baker.command(params={"name": "The name of the environment to lookup."})
 def id_of_env (name=""):
    """Retrieves the ID of a project, given its name.
    """
@@ -96,7 +96,7 @@ def id_of_env (name=""):
 #
 # Start containers within a service (e.g. for Start Once containers).
 #
-@baker.command(params={"service_id": "The ID of the service to start the containers of."})
+#@baker.command(params={"service_id": "The ID of the service to start the containers of."})
 def start_containers (service_id):
    """Starts the containers of a given service, typically a Start Once service.
    """
@@ -105,7 +105,7 @@ def start_containers (service_id):
 #
 # Start containers within a service (e.g. for Start Once containers).
 #
-@baker.command(params={"service_id": "The ID of the service to start the containers of."})
+#@baker.command(params={"service_id": "The ID of the service to start the containers of."})
 def start_service (service_id):
    """Starts the containers of a given service, typically a Start Once service.
    """
@@ -114,14 +114,14 @@ def start_service (service_id):
    containers = get(HOST + URL_SERVICE + service_id + "/instances").json()['data']
    for container in containers:
       start_url = container['actions']['start']
-      print "Starting container %s with url %s" % (container['name'], start_url)
+      print("Starting container %s with url %s" % (container['name'], start_url))
       post(start_url, "")
 
 
 #
 # Stop containers within a service.
 #
-@baker.command(params={"service_id": "The ID of the service to stop the containers of."})
+#@baker.command(params={"service_id": "The ID of the service to stop the containers of."})
 def stop_service (service_id):
    """Stop the containers of a given service.
    """
@@ -130,14 +130,14 @@ def stop_service (service_id):
    containers = get(HOST + URL_SERVICE + service_id + "/instances").json()['data']
    for container in containers:
       stop_url = container['actions']['stop']
-      print "Stopping container %s with url %s" % (container['name'], stop_url)
+      print("Stopping container %s with url %s" % (container['name'], stop_url))
       post(stop_url, "")
 
 
 #
 # Restart containers within a service
 #
-@baker.command(params={"service_id": "The ID of the service to restart the containers of."})
+#@baker.command(params={"service_id": "The ID of the service to restart the containers of."})
 def restart_service(service_id):
   """Restart the containers of a given service.
   """
@@ -146,23 +146,23 @@ def restart_service(service_id):
   containers = get(HOST + URL_SERVICE + service_id + "/instances").json()['data']
   for container in containers:
       restart_url = container['actions']['restart']
-      print "Restarting container: " + container['name']
+      print("Restarting container: " + container['name'])
       post(restart_url)
 
 
 #
 # Upgrades the service.
 #
-@baker.command(params={
-                        "service_id": "The ID of the service to upgrade.",
-                        "start_first": "Whether or not to start the new instance first before stopping the old one.",
-                        "complete_previous": "If set and the service was previously upgraded but the upgrade wasn't completed, it will be first marked as Finished and then the upgrade will occur.",
-                        "imageUuid": "If set the config will be overwritten to use new image. Don't forget Rancher Formatting 'docker:<Imagename>:tag'",
-                        "auto_complete": "Set this to automatically 'finish upgrade' once upgrade is complete",
-                        "replace_env_name": "The name of an environment variable to be changed in the launch config (requires replace_env_value).",
-                        "replace_env_value": "The value of the environment variable to be replaced (requires replace_env_name).",
-                        "timeout": "How many seconds to wait until an upgrade fails"
-                       })
+#@baker.command(params={
+#                        "service_id": "The ID of the service to upgrade.",
+#                        "start_first": "Whether or not to start the new instance first before stopping the old one.",
+#                        "complete_previous": "If set and the service was previously upgraded but the upgrade wasn't completed, it will be first marked as Finished and then the upgrade will occur.",
+#                        "imageUuid": "If set the config will be overwritten to use new image. Don't forget Rancher Formatting 'docker:<Imagename>:tag'",
+#                        "auto_complete": "Set this to automatically 'finish upgrade' once upgrade is complete",
+#                        "replace_env_name": "The name of an environment variable to be changed in the launch config (requires replace_env_value).",
+#                        "replace_env_value": "The value of the environment variable to be replaced (requires replace_env_name).",
+#                        "timeout": "How many seconds to wait until an upgrade fails"
+#                       })
 def upgrade(service_id, start_first=True, complete_previous=False, imageUuid=None, auto_complete=False,
             batch_size=1, interval_millis=10000, replace_env_name=None, replace_env_value=None, timeout=60):
    """Upgrades a service
@@ -185,14 +185,14 @@ def upgrade(service_id, start_first=True, complete_previous=False, imageUuid=Non
 
    # complete previous upgrade flag on
    if complete_previous and current_service_config['state'] == "upgraded":
-      print "Previous service upgrade wasn't completed, completing it now..."
+      print("Previous service upgrade wasn't completed, completing it now...")
       post(HOST + URL_SERVICE + service_id + "?action=finishupgrade", "")
       r = get(HOST + URL_SERVICE + service_id)
       current_service_config = r.json()
 
       sleep_count = 0
-      while current_service_config['state'] != "active" and sleep_count < timeout // 2:
-         print "Waiting for upgrade to finish..."
+      while current_service_config['state'] != "active" and sleep_count < timeout / 2:
+         print("Waiting for upgrade to finish...")
          time.sleep (2)
          r = get(HOST + URL_SERVICE + service_id)
          current_service_config = r.json()
@@ -200,7 +200,7 @@ def upgrade(service_id, start_first=True, complete_previous=False, imageUuid=Non
 
    # can't upgrade a service if it's not in active state
    if current_service_config['state'] != "active":
-      print "Service cannot be updated due to its current state: %s" % current_service_config['state']
+      print("Service cannot be updated due to its current state: %s" % current_service_config['state'])
       sys.exit(1)
 
    # Stuff the current service launch config into the request for upgrade
@@ -209,69 +209,69 @@ def upgrade(service_id, start_first=True, complete_previous=False, imageUuid=Non
 
    # replace the environment variable specified (if one was)
    if replace_env_name != None and replace_env_value != None:
-      print "Replacing environment variable %s from %s to %s" % (replace_env_name, upgrade_strategy['inServiceStrategy']['launchConfig']['environment'][replace_env_name], replace_env_value)
+      print("Replacing environment variable %s from %s to %s" % (replace_env_name, upgrade_strategy['inServiceStrategy']['launchConfig']['environment'][replace_env_name], replace_env_value))
       upgrade_strategy['inServiceStrategy']['launchConfig']['environment'][replace_env_name] = replace_env_value
 
 
    if imageUuid != None:
       # place new image into config
       upgrade_strategy['inServiceStrategy']['launchConfig']['imageUuid'] = imageUuid
-      print "New Image: %s" % upgrade_strategy['inServiceStrategy']['launchConfig']['imageUuid']
+      print("New Image: %s" % upgrade_strategy['inServiceStrategy']['launchConfig']['imageUuid'])
 
    # post the upgrade request
    post(current_service_config['actions']['upgrade'], upgrade_strategy)
 
-   print "Upgrade of %s service started!" % current_service_config['name']
+   print("Upgrade of %s service started!" % current_service_config['name'])
 
    r = get(HOST + URL_SERVICE + service_id)
    current_service_config = r.json()
 
-   print "Service State '%s.'" % current_service_config['state']
+   print("Service State '%s.'" % current_service_config['state'])
 
-   print "Waiting for upgrade to finish..."
+   print("Waiting for upgrade to finish...")
    sleep_count = 0
-   while current_service_config['state'] != "upgraded" and sleep_count < timeout // 2:
-         print "."
+   while current_service_config['state'] != "upgraded" and sleep_count < timeout / 2:
+         print(".")
          time.sleep (2)
          r = get(HOST + URL_SERVICE + service_id)
          current_service_config = r.json()
          sleep_count += 1
 
-   if sleep_count >= timeout // 2:
-      print "Upgrading take to much time! Check Rancher UI for more details."
+   if sleep_count >= timeout / 2:
+      print("Upgrading take to much time! Check Rancher UI for more details.")
       sys.exit(1)
    else:
-      print "Upgraded"
+      print("Upgraded")
 
    if auto_complete and current_service_config['state'] == "upgraded":
       post(HOST + URL_SERVICE + service_id + "?action=finishupgrade", "")
       r = get(HOST + URL_SERVICE + service_id)
       current_service_config = r.json()
-      print "Auto Finishing Upgrade..."
+      print("Auto Finishing Upgrade...")
 
       upgraded_sleep_count = 0
-      while current_service_config['state'] != "active" and upgraded_sleep_count < timeout // 2:
-         print "."
+      while current_service_config['state'] != "active" and upgraded_sleep_count < timeout / 2:
+         print(".")
          time.sleep (2)
          r = get(HOST + URL_SERVICE + service_id)
          current_service_config = r.json()
          upgraded_sleep_count += 1
 
       if current_service_config['state'] == "active":
-         print "DONE"
+         print("DONE")
 
       else:
-         print "Something has gone wrong!  Check Rancher UI for more details."
+         print("Something has gone wrong!  Check Rancher UI for more details.")
          sys.exit(1)
 
 
 #
 # Execute remote command on container.
 #
-@baker.command(params={
-                        "service_id": "The ID of the service to execute on",
-                        "command": "The command to execute"
-                      })
+#@baker.command(params={
+#                        "service_id": "The ID of the service to execute on",
+#                        "command": "The command to execute"
+#                      })
 def execute(service_id,command):
   """Execute remote command
 
@@ -283,12 +283,12 @@ def execute(service_id,command):
 
   # guard we have at least one container available
   if len(containers) <= 0:
-    print "No container available"
+    print("No container available")
     sys.exit(1)
 
   # take the first (random) container to execute the command on
   execution_url = containers[0]['actions']['execute']
-  print "Executing '%s' on container '%s'" % (command, containers[0]['name'])
+  print("Executing '%s' on container '%s'" % (command, containers[0]['name']))
 
   # prepare post payload
   payload = json.loads('{"attachStdin": true,"attachStdout": true,"command": ["/bin/sh","-c"],"tty": true}')
@@ -301,19 +301,19 @@ def execute(service_id,command):
   ws_url = intermediate['url'] + "?token=" + ws_token
 
   # call websocket and print answer
-  print "> \n%s" % ws(ws_url)
+  print("> \n%s" % ws(ws_url))
 
-  print "DONE"
+  print("DONE")
 
 
 
 #
 # Rollback the service.
 #
-@baker.command(params={
-                        "service_id": "The ID of the service to rollback.",
-                        "timeout": "How many seconds to wait until an rollback fails"
-                       })
+#@baker.command(params={
+#                        "service_id": "The ID of the service to rollback.",
+#                        "timeout": "How many seconds to wait until an rollback fails"
+#                       })
 def rollback(service_id, timeout=60):
    """Performs a service rollback
    """
@@ -323,40 +323,40 @@ def rollback(service_id, timeout=60):
 
    # can't rollback a service if it's not in upgraded state
    if current_service_config['state'] != "upgraded":
-      print "Service cannot be updated due to its current state: %s" % current_service_config['state']
+      print("Service cannot be updated due to its current state: %s" % current_service_config['state'])
       sys.exit(1)
 
    # post the rollback request
    post(current_service_config['actions']['rollback'], "");
 
-   print "Rollback of %s service started!" % current_service_config['name']
+   print("Rollback of %s service started!" % current_service_config['name'])
 
    r = get(HOST + URL_SERVICE + service_id)
    current_service_config = r.json()
 
-   print "Service State '%s.'" % current_service_config['state']
+   print("Service State '%s.'" % current_service_config['state'])
 
-   print "Waiting for rollback to finish..."
+   print("Waiting for rollback to finish...")
    sleep_count = 0
-   while current_service_config['state'] != "active" and sleep_count < timeout // 2:
-         print "."
+   while current_service_config['state'] != "active" and sleep_count < timeout / 2:
+         print(".")
          time.sleep (2)
          r = get(HOST + URL_SERVICE + service_id)
          current_service_config = r.json()
          sleep_count += 1
 
-   if sleep_count >= timeout // 2:
-      print "Rolling back take to much time! Check Rancher UI for more details."
+   if sleep_count >= timeout / 2:
+      print("Rolling back take to much time! Check Rancher UI for more details.")
       sys.exit(1)
    else:
-      print "Rolled back"
+      print("Rolled back")
 
 
 #
 # Activate a service.
 #
-@baker.command(params={"service_id": "The ID of the service to activate.",
-                        "timeout": "How many seconds to wait until an upgrade fails"})
+#@baker.command(params={"service_id": "The ID of the service to activate.",
+#                        "timeout": "How many seconds to wait until an upgrade fails"})
 def activate (service_id, timeout=60):
    """Activate the containers of a given service.
    """
@@ -366,15 +366,15 @@ def activate (service_id, timeout=60):
 
    # can't activate a service if it's not in inactive state
    if current_service_config['state'] != "inactive":
-      print "Service cannot be deactivated due to its current state: %s" % current_service_config['state']
+      print("Service cannot be deactivated due to its current state: %s" % current_service_config['state'])
       sys.exit(1)
 
    post(current_service_config['actions']['activate'], "");
 
    # Wait Activation to finish
    sleep_count = 0
-   while current_service_config['state'] != "active" and sleep_count < timeout // 2:
-      print "Waiting for activation to finish..."
+   while current_service_config['state'] != "active" and sleep_count < timeout / 2:
+      print("Waiting for activation to finish...")
       time.sleep (2)
       r = get(HOST + URL_SERVICE + service_id)
       current_service_config = r.json()
@@ -384,8 +384,8 @@ def activate (service_id, timeout=60):
 #
 # Deactivate a service.
 #
-@baker.command(params={"service_id": "The ID of the service to deactivate.",
-                        "timeout": "How many seconds to wait until an upgrade fails"})
+#@baker.command(params={"service_id": "The ID of the service to deactivate.",
+#                        "timeout": "How many seconds to wait until an upgrade fails"})
 def deactivate (service_id, timeout=60):
    """Stops the containers of a given service. (e.g. for maintenance purposes)
    """
@@ -395,15 +395,15 @@ def deactivate (service_id, timeout=60):
 
    # can't deactivate a service if it's not in active state
    if current_service_config['state'] != "active" and current_service_config['state'] != "updating-active":
-      print "Service cannot be deactivated due to its current state: %s" % current_service_config['state']
+      print("Service cannot be deactivated due to its current state: %s" % current_service_config['state'])
       sys.exit(1)
 
    post(current_service_config['actions']['deactivate'], "");
 
    # Wait deactivation to finish
    sleep_count = 0
-   while current_service_config['state'] != "inactive" and sleep_count < timeout // 2:
-      print "Waiting for deactivation to finish..."
+   while current_service_config['state'] != "inactive" and sleep_count < timeout / 2:
+      print("Waiting for deactivation to finish...")
       time.sleep (2)
       r = get(HOST + URL_SERVICE + service_id)
       current_service_config = r.json()
@@ -412,8 +412,8 @@ def deactivate (service_id, timeout=60):
 #
 # Deactivate a env.
 #
-@baker.command(params={"environment_id": "The ID of the environment to deactivate.",
-                        "timeout": "How many seconds to wait until an upgrade fails"})
+#@baker.command(params={"environment_id": "The ID of the environment to deactivate.",
+#                        "timeout": "How many seconds to wait until an upgrade fails"})
 def deactivate_env (environment_id, timeout=60):
    """Stops the environment
    """
@@ -423,15 +423,15 @@ def deactivate_env (environment_id, timeout=60):
 
    # can't deactivate a service if it's not in active state
    if current_environment_config['state'] != "active":
-      print "Environment cannot be deactivated due to its current state: %s" % current_environment_config['state']
+      print("Environment cannot be deactivated due to its current state: %s" % current_environment_config['state'])
       sys.exit(1)
 
    post(current_environment_config['actions']['deactivate'], "");
 
    # Wait deactivation to finish
    sleep_count = 0
-   while current_environment_config['state'] != "inactive" and sleep_count < timeout // 2:
-      print "Waiting for deactivation to finish..."
+   while current_environment_config['state'] != "inactive" and sleep_count < timeout / 2:
+      print("Waiting for deactivation to finish...")
       time.sleep (2)
       r = get(HOST + URL_ENVIRONMENT + environment_id)
       current_environment_config = r.json()
@@ -440,8 +440,8 @@ def deactivate_env (environment_id, timeout=60):
 #
 # Delete a env.
 #
-@baker.command(params={"environment_id": "The ID of the environment to delete.",
-                        "timeout": "How many seconds to wait until an upgrade fails"})
+#@baker.command(params={"environment_id": "The ID of the environment to delete.",
+#                        "timeout": "How many seconds to wait until an upgrade fails"})
 def delete_env (environment_id, timeout=60):
    """Stops the environment
    """
@@ -451,15 +451,15 @@ def delete_env (environment_id, timeout=60):
 
    # can't deactivate a service if it's not in active state
    if current_environment_config['state'] != "inactive":
-      print "Environment cannot be deactivated due to its current state: %s" % current_environment_config['state']
+      print("Environment cannot be deactivated due to its current state: %s" % current_environment_config['state'])
       sys.exit(1)
 
    delete(current_environment_config['actions']['delete'], "");
 
    # Wait deactivation to finish
    sleep_count = 0
-   while current_environment_config['state'] != "removed" and sleep_count < timeout // 2:
-      print "Waiting for delete to finish..."
+   while current_environment_config['state'] != "removed" and sleep_count < timeout / 2:
+      print("Waiting for delete to finish...")
       time.sleep (2)
       r = get(HOST + URL_ENVIRONMENT + environment_id)
       current_environment_config = r.json()
@@ -468,8 +468,8 @@ def delete_env (environment_id, timeout=60):
 #
 # Remove a service.
 #
-@baker.command(params={"service_id": "The ID of the service to remove.",
-                        "timeout": "How many seconds to wait until an upgrade fails"})
+#@baker.command(params={"service_id": "The ID of the service to remove.",
+#                        "timeout": "How many seconds to wait until an upgrade fails"})
 def remove (service_id, timeout=60):
    """Remove the service
    """
@@ -479,15 +479,15 @@ def remove (service_id, timeout=60):
 
    # can't remove a service if it's not in inactive state
    if current_service_config['state'] != "inactive":
-      print "Service cannot be removed due to its current state: %s" % current_service_config['state']
+      print("Service cannot be removed due to its current state: %s" % current_service_config['state'])
       sys.exit(1)
 
    post(current_service_config['actions']['remove'], "");
 
    # Wait remove to finish
    sleep_count = 0
-   while current_service_config['state'] != "removed" and sleep_count < timeout // 2:
-      print "Waiting for remove to finish..."
+   while current_service_config['state'] != "removed" and sleep_count < timeout / 2:
+      print("Waiting for remove to finish...")
       time.sleep (2)
       r = get(HOST + URL_SERVICE + service_id)
       current_service_config = r.json()
@@ -497,13 +497,13 @@ def remove (service_id, timeout=60):
 #
 # Get a service state
 #
-@baker.command(default=True, params={"service_id": "The ID of the service to read"})
+#@baker.command(default=True, params={"service_id": "The ID of the service to read"})
 def state(service_id=""):
    """Retrieves the service state information.
    """
 
    r = get(HOST + URL_SERVICE + service_id)
-   print(r.json()["state"])
+   print((r.json()["state"]))
 
 
 #
