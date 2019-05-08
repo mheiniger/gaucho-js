@@ -1,275 +1,299 @@
-import * as baker from 'baker'
-import * as json from 'json'
-import * as requests from 'requests'
-import * as sys from 'sys'
-import * as time from 'time'
-import * as websocket from 'websocket'
-import * as base64 from 'base64'
+const yargs = require('yargs')
+const requests = require('axios')
+const WebSocket = require('ws')
+const util = require('util')
 
-let HOST, PASSWORD, USERNAME, kwargs
-function _pjSnippets (container) {
-  function inES6 (left, right) {
-    if (((right instanceof Array) || ((typeof right) === 'string'))) {
-      return (right.indexOf(left) > (-1))
-    } else if (((right instanceof Map) || (right instanceof Set) || (right instanceof WeakMap) || (right instanceof WeakSet))) {
-      return right.has(left)
-    } else {
-      return (left in right)
-    }
-  }
-  container['inES6'] = inES6
-  return container
-}
-const _pj = {}
-_pjSnippets(_pj)
-HOST = 'http://rancher.local:8080/v1'
 const URL_SERVICE = '/services/'
 const URL_ENVIRONMENT = '/projects/'
-USERNAME = 'userid'
-PASSWORD = 'password'
-kwargs = {}
+let HOST = 'http://rancher.local:8080/v1'
+let USERNAME = 'userid'
+let PASSWORD = 'password'
+
+// Attempts to read environment variables to configure the program.
+if (process.env['CATTLE_ACCESS_KEY']) {
+  USERNAME = process.env['CATTLE_ACCESS_KEY']
+}
+if (process.env['CATTLE_SECRET_KEY']) {
+  PASSWORD = process.env['CATTLE_SECRET_KEY']
+}
+if (process.env['CATTLE_URL']) {
+  HOST = process.env['CATTLE_URL']
+}
+if (process.env['RANCHER_ACCESS_KEY']) {
+  USERNAME = process.env['RANCHER_ACCESS_KEY']
+}
+if (process.env['RANCHER_SECRET_KEY']) {
+  PASSWORD = process.env['RANCHER_SECRET_KEY']
+}
+if (process.env['RANCHER_URL']) {
+  HOST = process.env['RANCHER_URL']
+}
+if (process.env['SSL_VERIFY']) {
+  if ((process.env['SSL_VERIFY'].lower() === 'false')) {
+    process.env['SSL_VERIFY'] = false
+  }
+}
+if (HOST && HOST.search(/\/v1$/) < 0) {
+  HOST = (`${HOST}/v1`)
+}
+
 // HTTP
-function getRequest (url) {
-  const r = requests.get(url, {'auth': [USERNAME, PASSWORD]})
-  r.raise_for_status()
-  return r
-}
-function postRequest (url, data = '') {
-  let r
-  if (data) {
-    r = requests.post(url, {'data': json.dumps(data), 'auth': [USERNAME, PASSWORD]})
-  } else {
-    r = requests.post(url, {'data': '', 'auth': [USERNAME, PASSWORD]})
+async function getRequest (url) {
+  try {
+    return await requests.get(url, {'auth': {username: USERNAME, password: PASSWORD}})
+  } catch (err) {
+    return console.log(err, err.message)
   }
-  r.raise_for_status()
-  return r.json()
 }
-function deleteRequest (url, data = '') {
-  let r
-  if (data) {
-    r = requests.delete(url, {'data': json.dumps(data), 'auth': [USERNAME, PASSWORD]})
-  } else {
-    r = requests.delete(url, {'data': '', 'auth': [USERNAME, PASSWORD]})
+
+async function postRequest (url, data = '') {
+  try {
+    if (data) {
+      return await requests.post(url, {'data': JSON.stringify(data), 'auth': {username: USERNAME, password: PASSWORD}})
+    } else {
+      return await requests.post(url, {'data': '', 'auth': {username: USERNAME, password: PASSWORD}})
+    }
+  } catch (err) {
+    return console.log(err, err.message)
   }
-  r.raise_for_status()
-  return r.json()
+}
+
+async function deleteRequest (url, data = '') {
+  try {
+    if (data) {
+      return await requests.delete(url, {'data': JSON.stringify(data), 'auth': {username: USERNAME, password: PASSWORD}})
+    } else {
+      return await requests.delete(url, {'data': '', 'auth': {username: USERNAME, password: PASSWORD}})
+    }
+  } catch (err) {
+    return console.log(err, err.message)
+  }
 }
 
 // Websocket
 function ws (url) {
-  const webS = websocket.create_connection(url)
-  const resp = base64.b64decode(webS.recv())
-  webS.close()
-  return resp
+  const ws = new WebSocket(url)
+
+  return new Promise((resolve, reject) => {
+    ws.on('message', function incoming (data) {
+      return resolve(data)
+    })
+  })
 }
 
 // Helper
 function printJson (data) {
-  console.log(json.dumps(data, {'sort_keys': true, 'indent': 3, 'separators': [',', ': ']}))
+  console.log(util.inspect(data))
+}
+
+async function sleep (seconds) {
+  return new Promise(resolve => setTimeout(resolve, seconds * 1000))
 }
 
 //
 // Query the service configuration.
 //
-// @baker.command(default=True, params={"service_id": "The ID of the service to read (optional)"})
-function query (service_id = '') {
+yargs.command('query <service_id>', 'The ID of the service to read (optional)', () => {}, (argv) => {
+  query(argv.service_id)
+})
+
+async function query (serviceId = '') {
   /* Retrieves the service information.
 
     If you don't specify an ID, data for all services
     will be retrieved.
     */
-  const r = getRequest(((HOST + URL_SERVICE) + service_id))
-  printJson(r.json())
+  const r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  printJson(r)
 }
 
 //
 // Converts a service name into an ID
 //
-// @baker.command(params={
-//                         "name": "The name of the service to lookup.",
-//                         "newest": "From list of IDs, return newest (optional)"})
-function id_of (name = '', newest = false) {
-  /* Retrieves the ID of a service, given its name.
-    */
-  let index
+yargs.command('id_of <name> [options]', 'Converts a service name into an ID', (yargs) => {
+  yargs.positional('name', {describe: 'The name of the service to lookup.'})
+    .positional('newest', {describe: 'From list of IDs, return newest (optional)'})
+}, async (argv) => { console.log(await idOf(argv.name, argv.newest)) })
+
+async function idOf (name = '', newest = false) {
+  const response = await getRequest(`${HOST}/services?name=${name}`)
+  const service = response.data
   if (newest) {
-    index = (-1)
-  } else {
-    index = 0
+    return service.data[service.data.length - 1].id
   }
-  const service = getRequest((`${HOST}/services?name=${name}`)).json()
-  return service['data'][index]['id']
+  return service.data[0].id
 }
 
 //
 // Converts a environment name into an ID
 //
-// @baker.command(params={"name": "The name of the environment to lookup."})
-function id_of_env (name = '') {
-  /* Retrieves the ID of a project, given its name.
-    */
-  const environment = getRequest((`${HOST}/project?name=${name}`)).json()
+yargs.command('id_of_env <name>', 'Converts a environment name into an ID', (yargs) => {
+  yargs.positional('name', {describe: 'The name of the environment to lookup'})
+}, async (argv) => { console.log(await idOfEnv(argv.name)) })
+
+async function idOfEnv (name = '') {
+  const environment = await getRequest((`${HOST}/project?name=${name}`))
   return environment['data'][0]['id']
 }
 
 //
 // Start containers within a service (e.g. for Start Once containers).
 //
-// @baker.command(params={"service_id": "The ID of the service to start the containers of."})
-function start_containers (service_id) {
-  /* Starts the containers of a given service, typically a Start Once service.
-    */
-  start_service(service_id)
+yargs.command('start_containers <service_id>', 'Start containers within a service (e.g. for Start Once containers).', (yargs) => {
+  yargs.positional('service_id', {describe: 'The ID of the service to start the containers of.'})
+}, async (argv) => { console.log(await startContainers(argv.service_id)) })
+
+function startContainers (serviceId) {
+  startService(serviceId)
 }
 
 //
 // Start containers within a service (e.g. for Start Once containers).
 //
-// @baker.command(params={"service_id": "The ID of the service to start the containers of."})
-function start_service (service_id) {
-  /* Starts the containers of a given service, typically a Start Once service.
-    */
-  let containers, startUrl
-  containers = getRequest((`${(HOST + URL_SERVICE) + service_id}/instances`)).json()['data']
-  for (var container, _pj_c = 0, _pj_a = containers, _pj_b = _pj_a.length; (_pj_c < _pj_b); _pj_c += 1) {
-    container = _pj_a[_pj_c]
-    startUrl = container['actions']['start']
+yargs.command('start_service <service_id>', 'Start containers within a service (e.g. for Start Once containers).', (yargs) => {
+  yargs.positional('service_id', {describe: 'The ID of the service to start the containers of.'})
+}, async (argv) => { console.log(await startService(argv.service_id)) })
+
+async function startService (serviceId) {
+  const containers = await getRequest((`${(HOST + URL_SERVICE) + serviceId}/instances`)).data
+  containers.forEach(async (container) => {
+    const startUrl = container.actions.start
     console.log(('Starting container %s with url %s' % [container['name'], startUrl]))
-    postRequest(startUrl, '')
-  }
+    await postRequest(startUrl, '')
+  })
 }
 
 //
 // Stop containers within a service.
 //
-// @baker.command(params={"service_id": "The ID of the service to stop the containers of."})
-function stop_service (service_id) {
-  /* Stop the containers of a given service.
-    */
-  let containers, stopUrl
-  containers = getRequest((`${(HOST + URL_SERVICE) + service_id}/instances`)).json()['data']
-  for (var container, _pj_c = 0, _pj_a = containers, _pj_b = _pj_a.length; (_pj_c < _pj_b); _pj_c += 1) {
-    container = _pj_a[_pj_c]
-    stopUrl = container['actions']['stop']
+yargs.command('stop_service <service_id>', 'Stop containers within a service.', (yargs) => {
+  yargs.positional('service_id', {describe: 'The ID of the service to stop the containers of.'})
+}, async (argv) => { console.log(await stopService(argv.service_id)) })
+
+async function stopService (serviceId) {
+  const containers = await getRequest((`${(HOST + URL_SERVICE) + serviceId}/instances`)).data
+  containers.forEach(async (container) => {
+    const stopUrl = container['actions']['stop']
     console.log(('Stopping container %s with url %s' % [container['name'], stopUrl]))
-    postRequest(stopUrl, '')
-  }
+    await postRequest(stopUrl, '')
+  })
 }
 
 
 //
 // Restart containers within a service
 //
-// @baker.command(params={"service_id": "The ID of the service to restart the containers of."})
-function restart_service (service_id) {
-  /* Restart the containers of a given service.
-    */
-  let containers, restartUrl
-  containers = getRequest((`${(HOST + URL_SERVICE) + service_id}/instances`)).json()['data']
-  for (var container, _pj_c = 0, _pj_a = containers, _pj_b = _pj_a.length; (_pj_c < _pj_b); _pj_c += 1) {
-    container = _pj_a[_pj_c]
-    restartUrl = container['actions']['restart']
+yargs.command('restart_service <service_id>', 'Restart containers within a service.', (yargs) => {
+  yargs.positional('service_id', {describe: 'The ID of the service to restart the containers of.'})
+}, async (argv) => { console.log(await restartService(argv.service_id)) })
+
+async function restartService (serviceId) {
+  const containers = await getRequest((`${(HOST + URL_SERVICE) + serviceId}/instances`)).data
+  containers.forEach(async (container) => {
+    const restartUrl = container['actions']['restart']
     console.log((`Restarting container: ${container['name']}`))
-    postRequest(restartUrl)
-  }
+    await postRequest(restartUrl)
+  })
 }
 
 //
 // Upgrades the service.
 //
-// @baker.command(params={
-//                         "service_id": "The ID of the service to upgrade.",
-//                         "start_first": "Whether or not to start the new instance first before stopping the old one.",
-//                         "complete_previous": "If set and the service was previously upgraded but the upgrade wasn't completed, it will be first marked as Finished and then the upgrade will occur.",
-//                         "imageUuid": "If set the config will be overwritten to use new image. Don't forget Rancher Formatting 'docker:<Imagename>:tag'",
-//                         "auto_complete": "Set this to automatically 'finish upgrade' once upgrade is complete",
-//                         "replace_env_name": "The name of an environment variable to be changed in the launch config (requires replace_env_value).",
-//                         "replace_env_value": "The value of the environment variable to be replaced (requires replace_env_name).",
-//                         "timeout": "How many seconds to wait until an upgrade fails"
-//                        })
-function upgrade (service_id, start_first = true, complete_previous = false, imageUuid = null, auto_complete = false, batch_size = 1, interval_millis = 10000, replace_env_name = null, replace_env_value = null, timeout = 60) {
+yargs.command('upgrade <service_id> [options]', 'Upgrades the service.', (yargs) => {
+  yargs.positional('service_id', {describe: 'The ID of the service to upgrade.'})
+    .positional('complete_previous', {describe: 'If set and the service was previously upgraded but the upgrade wasn\'t completed, it will be first marked as Finished and then the upgrade will occur.'})
+    .positional('imageUuid', {describe: 'If set the config will be overwritten to use new image. Don\'t forget Rancher Formatting \'docker:<Imagename>:tag\''})
+    .positional('auto_complete', {describe: 'Set this to automatically \'finish upgrade\' once upgrade is complete'})
+    .positional('replace_env_name', {describe: 'The name of an environment variable to be changed in the launch config (requires replace_env_value).'})
+    .positional('replace_env_value', {describe: 'The value of the environment variable to be replaced (requires replace_env_name).'})
+    .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
+}, async (argv) => {
+  console.log(await upgrade(argv.service_id, argv.start_first, argv.complete_previous, argv.imageUuid, argv.auto_complete, argv.batch_size, argv.interval_millis, argv.replace_env_name, argv.replace_env_value, argv.timeout))
+})
+
+async function upgrade (serviceId, startFirst = true, completePrevious = false, imageUuid = null, autoComplete = false, batchSize = 1, intervalMillis = 10000, replaceEnvName = null, replaceEnvValue = null, timeout = 60) {
   /* Upgrades a service
 
     Performs a service upgrade, keeping the same configuration, but otherwise
     pulling new image as needed and starting new containers, dropping the old
     ones.
     */
-  let current_service_config, r, sleep_count, upgrade_strategy, upgraded_sleep_count
-  upgrade_strategy = json.loads('{"inServiceStrategy": {"batchSize": 1,"intervalMillis": 10000,"startFirst": true,"launchConfig": {},"secondaryLaunchConfigs": []}}')
-  upgrade_strategy['inServiceStrategy']['batchSize'] = batch_size
-  upgrade_strategy['inServiceStrategy']['intervalMillis'] = interval_millis
-  if (start_first) {
-    upgrade_strategy['inServiceStrategy']['startFirst'] = 'true'
+  let currentServiceConfig, r, sleepCount, upgradedSleepCount
+  const upgradeStrategy = {'inServiceStrategy': {'batchSize': 1, 'intervalMillis': 10000, 'startFirst': true, 'launchConfig': {}, 'secondaryLaunchConfigs': []}}
+  upgradeStrategy.inServiceStrategy.batchSize = batchSize
+  upgradeStrategy.inServiceStrategy.intervalMillis = intervalMillis
+  if (startFirst) {
+    upgradeStrategy.inServiceStrategy.startFirst = 'true'
   } else {
-    upgrade_strategy['inServiceStrategy']['startFirst'] = 'false'
+    upgradeStrategy.inServiceStrategy.startFirst = 'false'
   }
-  r = getRequest(((HOST + URL_SERVICE) + service_id))
-  current_service_config = r.json()
-  if ((complete_previous && (current_service_config['state'] === 'upgraded'))) {
+  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  currentServiceConfig = r
+  if ((completePrevious && (currentServiceConfig.state === 'upgraded'))) {
     console.log("Previous service upgrade wasn't completed, completing it now...")
-    postRequest((`${(HOST + URL_SERVICE) + service_id}?action=finishupgrade`), '')
-    r = getRequest(((HOST + URL_SERVICE) + service_id))
-    current_service_config = r.json()
-    sleep_count = 0
-    while (((current_service_config['state'] !== 'active') && (sleep_count < (timeout / 2)))) {
+    await postRequest((`${(HOST + URL_SERVICE) + serviceId}?action=finishupgrade`), '')
+    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    currentServiceConfig = r
+    sleepCount = 0
+    while (((currentServiceConfig['state'] !== 'active') && (sleepCount < (timeout / 2)))) {
       console.log('Waiting for upgrade to finish...')
-      time.sleep(2)
-      r = getRequest(((HOST + URL_SERVICE) + service_id))
-      current_service_config = r.json()
-      sleep_count += 1
+      await sleep(2)
+      r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+      currentServiceConfig = r
+      sleepCount += 1
     }
   }
-  if ((current_service_config['state'] !== 'active')) {
-    console.log(('Service cannot be updated due to its current state: %s' % current_service_config['state']))
-    sys.exit(1)
+  if ((currentServiceConfig['state'] !== 'active')) {
+    console.log(('Service cannot be updated due to its current state: %s' % currentServiceConfig['state']))
+    process.exit(1)
   }
-  upgrade_strategy['inServiceStrategy']['launchConfig'] = current_service_config['launchConfig']
-  if (((replace_env_name !== null) && (replace_env_value !== null))) {
-    console.log(('Replacing environment variable %s from %s to %s' % [replace_env_name, upgrade_strategy['inServiceStrategy']['launchConfig']['environment'][replace_env_name], replace_env_value]))
-    upgrade_strategy['inServiceStrategy']['launchConfig']['environment'][replace_env_name] = replace_env_value
+  upgradeStrategy['inServiceStrategy']['launchConfig'] = currentServiceConfig['launchConfig']
+  if (((replaceEnvName !== null) && (replaceEnvValue !== null))) {
+    console.log(('Replacing environment variable %s from %s to %s' % [replaceEnvName, upgradeStrategy['inServiceStrategy']['launchConfig']['environment'][replaceEnvName], replaceEnvValue]))
+    upgradeStrategy['inServiceStrategy']['launchConfig']['environment'][replaceEnvName] = replaceEnvValue
   }
   if ((imageUuid !== null)) {
-    upgrade_strategy['inServiceStrategy']['launchConfig']['imageUuid'] = imageUuid
-    console.log(('New Image: %s' % upgrade_strategy['inServiceStrategy']['launchConfig']['imageUuid']))
+    upgradeStrategy['inServiceStrategy']['launchConfig']['imageUuid'] = imageUuid
+    console.log(('New Image: %s' % upgradeStrategy['inServiceStrategy']['launchConfig']['imageUuid']))
   }
-  postRequest(current_service_config['actions']['upgrade'], upgrade_strategy)
-  console.log(('Upgrade of %s service started!' % current_service_config['name']))
-  r = getRequest(((HOST + URL_SERVICE) + service_id))
-  current_service_config = r.json()
-  console.log(("Service State '%s.'" % current_service_config['state']))
+  await postRequest(currentServiceConfig['actions']['upgrade'], upgradeStrategy)
+  console.log(('Upgrade of %s service started!' % currentServiceConfig['name']))
+  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  currentServiceConfig = r
+  console.log(("Service State '%s.'" % currentServiceConfig['state']))
   console.log('Waiting for upgrade to finish...')
-  sleep_count = 0
-  while (((current_service_config['state'] !== 'upgraded') && (sleep_count < (timeout / 2)))) {
+  sleepCount = 0
+  while (((currentServiceConfig['state'] !== 'upgraded') && (sleepCount < (timeout / 2)))) {
     console.log('.')
-    time.sleep(2)
-    r = getRequest(((HOST + URL_SERVICE) + service_id))
-    current_service_config = r.json()
-    sleep_count += 1
+    await sleep(2)
+    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    currentServiceConfig = r
+    sleepCount += 1
   }
-  if ((sleep_count >= (timeout / 2))) {
+  if ((sleepCount >= (timeout / 2))) {
     console.log('Upgrading take to much time! Check Rancher UI for more details.')
-    sys.exit(1)
+    process.exit(1)
   } else {
     console.log('Upgraded')
   }
-  if ((auto_complete && (current_service_config['state'] === 'upgraded'))) {
-    postRequest((`${(HOST + URL_SERVICE) + service_id}?action=finishupgrade`), '')
-    r = getRequest(((HOST + URL_SERVICE) + service_id))
-    current_service_config = r.json()
+  if ((autoComplete && (currentServiceConfig['state'] === 'upgraded'))) {
+    await postRequest((`${(HOST + URL_SERVICE) + serviceId}?action=finishupgrade`), '')
+    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    currentServiceConfig = r
     console.log('Auto Finishing Upgrade...')
-    upgraded_sleep_count = 0
-    while (((current_service_config['state'] !== 'active') && (upgraded_sleep_count < (timeout / 2)))) {
+    upgradedSleepCount = 0
+    while (((currentServiceConfig['state'] !== 'active') && (upgradedSleepCount < (timeout / 2)))) {
       console.log('.')
-      time.sleep(2)
-      r = getRequest(((HOST + URL_SERVICE) + service_id))
-      current_service_config = r.json()
-      upgraded_sleep_count += 1
+      await sleep(2)
+      r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+      currentServiceConfig = r
+      upgradedSleepCount += 1
     }
-    if ((current_service_config['state'] === 'active')) {
+    if ((currentServiceConfig['state'] === 'active')) {
       console.log('DONE')
     } else {
       console.log('Something has gone wrong!  Check Rancher UI for more details.')
-      sys.exit(1)
+      process.exit(1)
     }
   }
 }
@@ -277,66 +301,68 @@ function upgrade (service_id, start_first = true, complete_previous = false, ima
 //
 // Execute remote command on container.
 //
-// @baker.command(params={
-//                         "service_id": "The ID of the service to execute on",
-//                         "command": "The command to execute"
-//                       })
-function execute (service_id, command) {
+yargs.command('execute <service_id> [command]', 'Execute remote command on container.', (yargs) => {
+  yargs.positional('service_id', {describe: 'The ID of the service to execute on'})
+    .positional('command', {describe: 'The command to execute'})
+}, async (argv) => { console.log(await execute(argv.service_id, argv.command)) })
+
+
+async function execute (serviceId, command) {
   /* Execute remote command
 
     Executes a command on one container of the service you specified.
     */
-  let containers, execution_url, intermediate, payload, ws_token, ws_url
-  containers = getRequest((`${(HOST + URL_SERVICE) + service_id}/instances`)).json()['data']
+  const containers = await getRequest((`${(HOST + URL_SERVICE) + serviceId}/instances`))['data']
   if ((containers.length <= 0)) {
     console.log('No container available')
-    sys.exit(1)
+    process.exit(1)
   }
-  execution_url = containers[0]['actions']['execute']
+  const executionUrl = containers[0]['actions']['execute']
   console.log(("Executing '%s' on container '%s'" % [command, containers[0]['name']]))
-  payload = json.loads('{"attachStdin": true,"attachStdout": true,"command": ["/bin/sh","-c"],"tty": true}')
+  const payload = {'attachStdin': true, 'attachStdout': true, 'command': ['/bin/sh', '-c'], 'tty': true}
   payload['command'].append(command)
-  intermediate = postRequest(execution_url, payload)
-  ws_token = intermediate['token']
-  ws_url = (`${intermediate['url']}?token=${ws_token}`)
-  console.log(('> \n%s' % ws(ws_url)))
+  const intermediate = await postRequest(executionUrl, payload)
+  const wsToken = intermediate['token']
+  const wsUrl = (`${intermediate['url']}?token=${wsToken}`)
+  console.log(('> \n%s' % ws(wsUrl)))
   console.log('DONE')
 }
 
 //
 // Rollback the service.
 //
-// @baker.command(params={
-//                         "service_id": "The ID of the service to rollback.",
-//                         "timeout": "How many seconds to wait until an rollback fails"
-//                        })
-function rollback (service_id, timeout = 60) {
+yargs.command('rollback <service_id> [options]', 'Rollback the service.', (yargs) => {
+  yargs.positional('service_id', {describe: 'The ID of the service to execute on'})
+    .positional('timeout', {describe: 'How many seconds to wait until an rollback fails'})
+}, async (argv) => { console.log(await rollback(argv.service_id, argv.timeout)) })
+
+async function rollback (serviceId, timeout = 60) {
   /* Performs a service rollback
     */
-  let current_service_config, r, sleep_count
-  r = getRequest(((HOST + URL_SERVICE) + service_id))
-  current_service_config = r.json()
-  if ((current_service_config['state'] !== 'upgraded')) {
-    console.log(('Service cannot be updated due to its current state: %s' % current_service_config['state']))
-    sys.exit(1)
+  let currentServiceConfig, r, sleepCount
+  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  currentServiceConfig = r
+  if ((currentServiceConfig['state'] !== 'upgraded')) {
+    console.log(('Service cannot be updated due to its current state: %s' % currentServiceConfig['state']))
+    process.exit(1)
   }
-  postRequest(current_service_config['actions']['rollback'], '')
-  console.log(('Rollback of %s service started!' % current_service_config['name']))
-  r = getRequest(((HOST + URL_SERVICE) + service_id))
-  current_service_config = r.json()
-  console.log(("Service State '%s.'" % current_service_config['state']))
+  await postRequest(currentServiceConfig['actions']['rollback'], '')
+  console.log(('Rollback of %s service started!' % currentServiceConfig['name']))
+  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  currentServiceConfig = r
+  console.log(("Service State '%s.'" % currentServiceConfig['state']))
   console.log('Waiting for rollback to finish...')
-  sleep_count = 0
-  while (((current_service_config['state'] !== 'active') && (sleep_count < (timeout / 2)))) {
+  sleepCount = 0
+  while (((currentServiceConfig['state'] !== 'active') && (sleepCount < (timeout / 2)))) {
     console.log('.')
-    time.sleep(2)
-    r = getRequest(((HOST + URL_SERVICE) + service_id))
-    current_service_config = r.json()
-    sleep_count += 1
+    await sleep(2)
+    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    currentServiceConfig = r
+    sleepCount += 1
   }
-  if ((sleep_count >= (timeout / 2))) {
+  if ((sleepCount >= (timeout / 2))) {
     console.log('Rolling back take to much time! Check Rancher UI for more details.')
-    sys.exit(1)
+    process.exit(1)
   } else {
     console.log('Rolled back')
   }
@@ -346,177 +372,174 @@ function rollback (service_id, timeout = 60) {
 //
 // Activate a service.
 //
-// @baker.command(params={"service_id": "The ID of the service to activate.",
-//                        "timeout": "How many seconds to wait until an upgrade fails"})
-function activate (service_id, timeout = 60) {
+yargs.command('activate <service_id> [options]', 'Activate a service.', (yargs) => {
+  yargs.positional('service_id', {describe: 'The ID of the service to activate.'})
+    .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
+}, async (argv) => { console.log(await activate(argv.service_id, argv.timeout)) })
+
+async function activate (serviceId, timeout = 60) {
   /* Activate the containers of a given service.
     */
-  let current_service_config, r, sleep_count
-  r = getRequest(((HOST + URL_SERVICE) + service_id))
-  current_service_config = r.json()
-  if ((current_service_config['state'] !== 'inactive')) {
-    console.log(('Service cannot be deactivated due to its current state: %s' % current_service_config['state']))
-    sys.exit(1)
+  let currentServiceConfig, r, sleepCount
+  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  currentServiceConfig = r
+  if ((currentServiceConfig['state'] !== 'inactive')) {
+    console.log(('Service cannot be deactivated due to its current state: %s' % currentServiceConfig['state']))
+    process.exit(1)
   }
-  postRequest(current_service_config['actions']['activate'], '')
-  sleep_count = 0
-  while (((current_service_config['state'] !== 'active') && (sleep_count < (timeout / 2)))) {
+  await postRequest(currentServiceConfig['actions']['activate'], '')
+  sleepCount = 0
+  while (((currentServiceConfig['state'] !== 'active') && (sleepCount < (timeout / 2)))) {
     console.log('Waiting for activation to finish...')
-    time.sleep(2)
-    r = getRequest(((HOST + URL_SERVICE) + service_id))
-    current_service_config = r.json()
-    sleep_count += 1
+    await sleep(2)
+    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    currentServiceConfig = r
+    sleepCount += 1
   }
 }
 
 //
 // Deactivate a service.
-//
-// @baker.command(params={"service_id": "The ID of the service to deactivate.",
-//                        "timeout": "How many seconds to wait until an upgrade fails"})
-function deactivate (service_id, timeout = 60) {
+yargs.command('deactivate <service_id> [options]', 'Deactivate a service.', (yargs) => {
+  yargs.positional('service_id', {describe: 'The ID of the service to deactivate.'})
+    .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
+}, async (argv) => { console.log(await deactivate(argv.service_id, argv.timeout)) })
+
+async function deactivate (serviceId, timeout = 60) {
   /* Stops the containers of a given service. (e.g. for maintenance purposes)
     */
-  let current_service_config, r, sleep_count
-  r = getRequest(((HOST + URL_SERVICE) + service_id))
-  current_service_config = r.json()
-  if (((current_service_config['state'] !== 'active') && (current_service_config['state'] !== 'updating-active'))) {
-    console.log(('Service cannot be deactivated due to its current state: %s' % current_service_config['state']))
-    sys.exit(1)
+  let currentServiceConfig, r, sleepCount
+  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  currentServiceConfig = r
+  if (((currentServiceConfig['state'] !== 'active') && (currentServiceConfig['state'] !== 'updating-active'))) {
+    console.log(('Service cannot be deactivated due to its current state: %s' % currentServiceConfig['state']))
+    process.exit(1)
   }
-  postRequest(current_service_config['actions']['deactivate'], '')
-  sleep_count = 0
-  while (((current_service_config['state'] !== 'inactive') && (sleep_count < (timeout / 2)))) {
+  await postRequest(currentServiceConfig['actions']['deactivate'], '')
+  sleepCount = 0
+  while (((currentServiceConfig['state'] !== 'inactive') && (sleepCount < (timeout / 2)))) {
     console.log('Waiting for deactivation to finish...')
-    time.sleep(2)
-    r = getRequest(((HOST + URL_SERVICE) + service_id))
-    current_service_config = r.json()
-    sleep_count += 1
+    await sleep(2)
+    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    currentServiceConfig = r
+    sleepCount += 1
   }
 }
 
 //
 // Deactivate a env.
 //
-// @baker.command(params={"environment_id": "The ID of the environment to deactivate.",
-//                        "timeout": "How many seconds to wait until an upgrade fails"})
-function deactivate_env (environment_id, timeout = 60) {
+yargs.command('deactivateEnv <environment_id> [options]', 'Deactivate a env.', (yargs) => {
+  yargs.positional('environment_id', {describe: 'The ID of the environment to deactivate.'})
+    .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
+}, async (argv) => { console.log(await deactivateEnv(argv.environment_id, argv.timeout)) })
+
+async function deactivateEnv (environmentId, timeout = 60) {
   /* Stops the environment
     */
-  let current_environment_config, r, sleep_count
-  r = getRequest(((HOST + URL_ENVIRONMENT) + environment_id))
-  current_environment_config = r.json()
-  if ((current_environment_config['state'] !== 'active')) {
-    console.log(('Environment cannot be deactivated due to its current state: %s' % current_environment_config['state']))
-    sys.exit(1)
+  let currentEnvironmentConfig, r, sleepCount
+  r = await getRequest(((HOST + URL_ENVIRONMENT) + environmentId))
+  currentEnvironmentConfig = r
+  if ((currentEnvironmentConfig['state'] !== 'active')) {
+    console.log(('Environment cannot be deactivated due to its current state: %s' % currentEnvironmentConfig['state']))
+    process.exit(1)
   }
-  postRequest(current_environment_config['actions']['deactivate'], '')
-  sleep_count = 0
-  while (((current_environment_config['state'] !== 'inactive') && (sleep_count < (timeout / 2)))) {
+  await postRequest(currentEnvironmentConfig['actions']['deactivate'], '')
+  sleepCount = 0
+  while (((currentEnvironmentConfig['state'] !== 'inactive') && (sleepCount < (timeout / 2)))) {
     console.log('Waiting for deactivation to finish...')
-    time.sleep(2)
-    r = getRequest(((HOST + URL_ENVIRONMENT) + environment_id))
-    current_environment_config = r.json()
-    sleep_count += 1
+    await sleep(2)
+    r = await getRequest(((HOST + URL_ENVIRONMENT) + environmentId))
+    currentEnvironmentConfig = r
+    sleepCount += 1
   }
 }
 
 //
 // Delete a env.
 //
-// @baker.command(params={"environment_id": "The ID of the environment to delete.",
-//                        "timeout": "How many seconds to wait until an upgrade fails"})
-function delete_env (environment_id, timeout = 60) {
+yargs.command('delete_env <environment_id> [options]', 'Delete a env.', (yargs) => {
+  yargs.positional('environment_id', {describe: 'The ID of the environment to delete.'})
+    .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
+}, async (argv) => { console.log(await deleteEnv(argv.environment_id, argv.timeout)) })
+
+async function deleteEnv (environmentId, timeout = 60) {
   /* Stops the environment
     */
-  let current_environment_config, r, sleep_count
-  r = getRequest(((HOST + URL_ENVIRONMENT) + environment_id))
-  current_environment_config = r.json()
-  if ((current_environment_config['state'] !== 'inactive')) {
-    console.log(('Environment cannot be deactivated due to its current state: %s' % current_environment_config['state']))
-    sys.exit(1)
+  let currentEnvironmentConfig, r, sleepCount
+  r = await getRequest(((HOST + URL_ENVIRONMENT) + environmentId))
+  currentEnvironmentConfig = r
+  if ((currentEnvironmentConfig['state'] !== 'inactive')) {
+    console.log(('Environment cannot be deactivated due to its current state: %s' % currentEnvironmentConfig['state']))
+    process.exit(1)
   }
-  deleteRequest(current_environment_config['actions']['delete'], '')
-  sleep_count = 0
-  while (((current_environment_config['state'] !== 'removed') && (sleep_count < (timeout / 2)))) {
+  await deleteRequest(currentEnvironmentConfig['actions']['delete'], '')
+  sleepCount = 0
+  while (((currentEnvironmentConfig['state'] !== 'removed') && (sleepCount < (timeout / 2)))) {
     console.log('Waiting for delete to finish...')
-    time.sleep(2)
-    r = getRequest(((HOST + URL_ENVIRONMENT) + environment_id))
-    current_environment_config = r.json()
-    sleep_count += 1
+    await sleep(2)
+    r = await getRequest(((HOST + URL_ENVIRONMENT) + environmentId))
+    currentEnvironmentConfig = r
+    sleepCount += 1
   }
 }
 
 //
 // Remove a service.
 //
-// @baker.command(params={"service_id": "The ID of the service to remove.",
-//                        "timeout": "How many seconds to wait until an upgrade fails"})
-function remove (service_id, timeout = 60) {
+
+yargs.command('remove <service_id> [options]', 'Deactivate a env.', (yargs) => {
+  yargs.positional('service_id', {describe: 'The ID of the service to remove.'})
+    .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
+}, async (argv) => { console.log(await remove(argv.service_id, argv.timeout)) })
+
+async function remove (serviceId, timeout = 60) {
   /* Remove the service
     */
-  let current_service_config, r, sleep_count
-  r = getRequest(((HOST + URL_SERVICE) + service_id))
-  current_service_config = r.json()
-  if ((current_service_config['state'] !== 'inactive')) {
-    console.log(('Service cannot be removed due to its current state: %s' % current_service_config['state']))
-    sys.exit(1)
+  let currentServiceConfig, r, sleepCount
+  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  currentServiceConfig = r
+  if ((currentServiceConfig['state'] !== 'inactive')) {
+    console.log(('Service cannot be removed due to its current state: %s' % currentServiceConfig['state']))
+    process.exit(1)
   }
-  postRequest(current_service_config['actions']['remove'], '')
-  sleep_count = 0
-  while (((current_service_config['state'] !== 'removed') && (sleep_count < (timeout / 2)))) {
+  await postRequest(currentServiceConfig['actions']['remove'], '')
+  sleepCount = 0
+  while (((currentServiceConfig['state'] !== 'removed') && (sleepCount < (timeout / 2)))) {
     console.log('Waiting for remove to finish...')
-    time.sleep(2)
-    r = getRequest(((HOST + URL_SERVICE) + service_id))
-    current_service_config = r.json()
-    sleep_count += 1
+    await sleep(2)
+    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    currentServiceConfig = r
+    sleepCount += 1
   }
 }
 
 //
 // Get a service state
 //
-// @baker.command(default=True, params={"service_id": "The ID of the service to read"})
-function state (service_id = '') {
+// baker.command(state, {name: 'state', default: true, opts: {'service_id': 'The ID of the service to read'}})
+
+yargs.command('state <service_id> [options]', 'Get a service state', (yargs) => {
+  yargs.positional('service_id', {describe: 'The ID of the service to read'})
+}, async (argv) => { console.log(await state(argv.service_id)) })
+
+async function state (serviceId = '') {
   /* Retrieves the service state information.
     */
-  let r
-  r = getRequest(((HOST + URL_SERVICE) + service_id))
-  console.log(r.json()['state'])
+  const r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  console.log(r['state'])
 }
 
-//
-// Script's entry point, starts Baker to execute the commands.
-// Attempts to read environment variables to configure the program.
-//
-if (_pj.inES6('CATTLE_ACCESS_KEY', process.env)) {
-  USERNAME = process.env['CATTLE_ACCESS_KEY']
-}
-if (_pj.inES6('CATTLE_SECRET_KEY', process.env)) {
-  PASSWORD = process.env['CATTLE_SECRET_KEY']
-}
-if (_pj.inES6('CATTLE_URL', process.env)) {
-  HOST = process.env['CATTLE_URL']
-}
-if (_pj.inES6('RANCHER_ACCESS_KEY', process.env)) {
-  USERNAME = process.env['RANCHER_ACCESS_KEY']
-}
-if (_pj.inES6('RANCHER_SECRET_KEY', process.env)) {
-  PASSWORD = process.env['RANCHER_SECRET_KEY']
-}
-if (_pj.inES6('RANCHER_URL', process.env)) {
-  HOST = process.env['RANCHER_URL']
-}
-if (_pj.inES6('SSL_VERIFY', process.env)) {
-  if ((process.env['SSL_VERIFY'].lower() === 'false')) {
-    kwargs['verify'] = false
-  } else {
-    kwargs['verify'] = process.env['SSL_VERIFY']
-  }
-}
-if ((!_pj.inES6('/v1', HOST))) {
-  HOST = (`${HOST}/v1`)
-}
-baker.run()
 
-// # sourceMappingURL=services.js.map
+yargs.usage(`$0 <cmd> [args]
+ Define the environment Variables:
+ RANCHER_ACCESS_KEY
+ RANCHER_SECRET_KEY
+ RANCHER_URL
+ optional: SSL_VERIFY=false`)
+yargs.demandCommand(1, 'You need at least one command before moving on')
+//
+// Provide commandline-cli if started from commandline
+if (require.main === module) {
+  yargs.help().argv
+}
