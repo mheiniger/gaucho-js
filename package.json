@@ -1,8 +1,8 @@
 {
-  "name": "gaucho-js",
+  "name": "rancher-gaucho",
   "version": "1.0.0",
   "description": "A JS version of etlweather/gaucho Rancher 1.x commandline scripts",
-  "main": "services.js",
+  "main": "gaucho.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node services"
@@ -18,11 +18,14 @@
     "Api"
   ],
   "author": "Michael Heiniger",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/mheiniger/gaucho/issues"
   },
   "homepage": "https://github.com/mheiniger/gaucho#readme",
+  "bin": {
+    "gaucho": "./gaucho.js"
+  },
   "dependencies": {
     "axios": "^0.18.0",
     "ws": "^7.0.0",

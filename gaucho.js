@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const yargs = require('yargs')
 const requests = require('axios')
 const WebSocket = require('ws')
@@ -61,7 +63,10 @@ async function postRequest (url, data = '') {
 async function deleteRequest (url, data = '') {
   try {
     if (data) {
-      return await requests.delete(url, {'data': JSON.stringify(data), 'auth': {username: USERNAME, password: PASSWORD}})
+      return await requests.delete(url, {
+        'data': JSON.stringify(data),
+        'auth': {username: USERNAME, password: PASSWORD}
+      })
     } else {
       return await requests.delete(url, {'data': '', 'auth': {username: USERNAME, password: PASSWORD}})
     }
@@ -93,7 +98,8 @@ async function sleep (seconds) {
 //
 // Query the service configuration.
 //
-yargs.command('query <service_id>', 'The ID of the service to read (optional)', () => {}, (argv) => {
+yargs.command('query [service_id]', 'The ID of the service to read (optional)', () => {
+}, (argv) => {
   query(argv.service_id)
 })
 
@@ -113,7 +119,9 @@ async function query (serviceId = '') {
 yargs.command('id_of <name> [options]', 'Converts a service name into an ID', (yargs) => {
   yargs.positional('name', {describe: 'The name of the service to lookup.'})
     .positional('newest', {describe: 'From list of IDs, return newest (optional)'})
-}, async (argv) => { console.log(await idOf(argv.name, argv.newest)) })
+}, async (argv) => {
+  console.log(await idOf(argv.name, argv.newest))
+})
 
 async function idOf (name = '', newest = false) {
   const response = await getRequest(`${HOST}/services?name=${name}`)
@@ -129,7 +137,9 @@ async function idOf (name = '', newest = false) {
 //
 yargs.command('id_of_env <name>', 'Converts a environment name into an ID', (yargs) => {
   yargs.positional('name', {describe: 'The name of the environment to lookup'})
-}, async (argv) => { console.log(await idOfEnv(argv.name)) })
+}, async (argv) => {
+  console.log(await idOfEnv(argv.name))
+})
 
 async function idOfEnv (name = '') {
   const environment = await getRequest((`${HOST}/project?name=${name}`))
@@ -141,7 +151,9 @@ async function idOfEnv (name = '') {
 //
 yargs.command('start_containers <service_id>', 'Start containers within a service (e.g. for Start Once containers).', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to start the containers of.'})
-}, async (argv) => { console.log(await startContainers(argv.service_id)) })
+}, async (argv) => {
+  console.log(await startContainers(argv.service_id))
+})
 
 function startContainers (serviceId) {
   startService(serviceId)
@@ -152,7 +164,9 @@ function startContainers (serviceId) {
 //
 yargs.command('start_service <service_id>', 'Start containers within a service (e.g. for Start Once containers).', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to start the containers of.'})
-}, async (argv) => { console.log(await startService(argv.service_id)) })
+}, async (argv) => {
+  console.log(await startService(argv.service_id))
+})
 
 async function startService (serviceId) {
   const containers = await getRequest((`${(HOST + URL_SERVICE) + serviceId}/instances`)).data
@@ -168,7 +182,9 @@ async function startService (serviceId) {
 //
 yargs.command('stop_service <service_id>', 'Stop containers within a service.', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to stop the containers of.'})
-}, async (argv) => { console.log(await stopService(argv.service_id)) })
+}, async (argv) => {
+  console.log(await stopService(argv.service_id))
+})
 
 async function stopService (serviceId) {
   const containers = await getRequest((`${(HOST + URL_SERVICE) + serviceId}/instances`)).data
@@ -185,7 +201,9 @@ async function stopService (serviceId) {
 //
 yargs.command('restart_service <service_id>', 'Restart containers within a service.', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to restart the containers of.'})
-}, async (argv) => { console.log(await restartService(argv.service_id)) })
+}, async (argv) => {
+  console.log(await restartService(argv.service_id))
+})
 
 async function restartService (serviceId) {
   const containers = await getRequest((`${(HOST + URL_SERVICE) + serviceId}/instances`)).data
@@ -219,7 +237,15 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
     ones.
     */
   let currentServiceConfig, r, sleepCount, upgradedSleepCount
-  const upgradeStrategy = {'inServiceStrategy': {'batchSize': 1, 'intervalMillis': 10000, 'startFirst': true, 'launchConfig': {}, 'secondaryLaunchConfigs': []}}
+  const upgradeStrategy = {
+    'inServiceStrategy': {
+      'batchSize': 1,
+      'intervalMillis': 10000,
+      'startFirst': true,
+      'launchConfig': {},
+      'secondaryLaunchConfigs': []
+    }
+  }
   upgradeStrategy.inServiceStrategy.batchSize = batchSize
   upgradeStrategy.inServiceStrategy.intervalMillis = intervalMillis
   if (startFirst) {
@@ -230,7 +256,7 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
   r = await getRequest(((HOST + URL_SERVICE) + serviceId))
   currentServiceConfig = r
   if ((completePrevious && (currentServiceConfig.state === 'upgraded'))) {
-    console.log("Previous service upgrade wasn't completed, completing it now...")
+    console.log('Previous service upgrade wasn\'t completed, completing it now...')
     await postRequest((`${(HOST + URL_SERVICE) + serviceId}?action=finishupgrade`), '')
     r = await getRequest(((HOST + URL_SERVICE) + serviceId))
     currentServiceConfig = r
@@ -260,7 +286,7 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
   console.log(('Upgrade of %s service started!' % currentServiceConfig['name']))
   r = await getRequest(((HOST + URL_SERVICE) + serviceId))
   currentServiceConfig = r
-  console.log(("Service State '%s.'" % currentServiceConfig['state']))
+  console.log(('Service State \'%s.\'' % currentServiceConfig['state']))
   console.log('Waiting for upgrade to finish...')
   sleepCount = 0
   while (((currentServiceConfig['state'] !== 'upgraded') && (sleepCount < (timeout / 2)))) {
@@ -304,7 +330,9 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
 yargs.command('execute <service_id> [command]', 'Execute remote command on container.', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to execute on'})
     .positional('command', {describe: 'The command to execute'})
-}, async (argv) => { console.log(await execute(argv.service_id, argv.command)) })
+}, async (argv) => {
+  console.log(await execute(argv.service_id, argv.command))
+})
 
 
 async function execute (serviceId, command) {
@@ -318,7 +346,7 @@ async function execute (serviceId, command) {
     process.exit(1)
   }
   const executionUrl = containers[0]['actions']['execute']
-  console.log(("Executing '%s' on container '%s'" % [command, containers[0]['name']]))
+  console.log(('Executing \'%s\' on container \'%s\'' % [command, containers[0]['name']]))
   const payload = {'attachStdin': true, 'attachStdout': true, 'command': ['/bin/sh', '-c'], 'tty': true}
   payload['command'].append(command)
   const intermediate = await postRequest(executionUrl, payload)
@@ -334,7 +362,9 @@ async function execute (serviceId, command) {
 yargs.command('rollback <service_id> [options]', 'Rollback the service.', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to execute on'})
     .positional('timeout', {describe: 'How many seconds to wait until an rollback fails'})
-}, async (argv) => { console.log(await rollback(argv.service_id, argv.timeout)) })
+}, async (argv) => {
+  console.log(await rollback(argv.service_id, argv.timeout))
+})
 
 async function rollback (serviceId, timeout = 60) {
   /* Performs a service rollback
@@ -350,7 +380,7 @@ async function rollback (serviceId, timeout = 60) {
   console.log(('Rollback of %s service started!' % currentServiceConfig['name']))
   r = await getRequest(((HOST + URL_SERVICE) + serviceId))
   currentServiceConfig = r
-  console.log(("Service State '%s.'" % currentServiceConfig['state']))
+  console.log(('Service State \'%s.\'' % currentServiceConfig['state']))
   console.log('Waiting for rollback to finish...')
   sleepCount = 0
   while (((currentServiceConfig['state'] !== 'active') && (sleepCount < (timeout / 2)))) {
@@ -375,7 +405,9 @@ async function rollback (serviceId, timeout = 60) {
 yargs.command('activate <service_id> [options]', 'Activate a service.', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to activate.'})
     .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
-}, async (argv) => { console.log(await activate(argv.service_id, argv.timeout)) })
+}, async (argv) => {
+  console.log(await activate(argv.service_id, argv.timeout))
+})
 
 async function activate (serviceId, timeout = 60) {
   /* Activate the containers of a given service.
@@ -403,7 +435,9 @@ async function activate (serviceId, timeout = 60) {
 yargs.command('deactivate <service_id> [options]', 'Deactivate a service.', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to deactivate.'})
     .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
-}, async (argv) => { console.log(await deactivate(argv.service_id, argv.timeout)) })
+}, async (argv) => {
+  console.log(await deactivate(argv.service_id, argv.timeout))
+})
 
 async function deactivate (serviceId, timeout = 60) {
   /* Stops the containers of a given service. (e.g. for maintenance purposes)
@@ -432,7 +466,9 @@ async function deactivate (serviceId, timeout = 60) {
 yargs.command('deactivateEnv <environment_id> [options]', 'Deactivate a env.', (yargs) => {
   yargs.positional('environment_id', {describe: 'The ID of the environment to deactivate.'})
     .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
-}, async (argv) => { console.log(await deactivateEnv(argv.environment_id, argv.timeout)) })
+}, async (argv) => {
+  console.log(await deactivateEnv(argv.environment_id, argv.timeout))
+})
 
 async function deactivateEnv (environmentId, timeout = 60) {
   /* Stops the environment
@@ -461,7 +497,9 @@ async function deactivateEnv (environmentId, timeout = 60) {
 yargs.command('delete_env <environment_id> [options]', 'Delete a env.', (yargs) => {
   yargs.positional('environment_id', {describe: 'The ID of the environment to delete.'})
     .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
-}, async (argv) => { console.log(await deleteEnv(argv.environment_id, argv.timeout)) })
+}, async (argv) => {
+  console.log(await deleteEnv(argv.environment_id, argv.timeout))
+})
 
 async function deleteEnv (environmentId, timeout = 60) {
   /* Stops the environment
@@ -491,7 +529,9 @@ async function deleteEnv (environmentId, timeout = 60) {
 yargs.command('remove <service_id> [options]', 'Deactivate a env.', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to remove.'})
     .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
-}, async (argv) => { console.log(await remove(argv.service_id, argv.timeout)) })
+}, async (argv) => {
+  console.log(await remove(argv.service_id, argv.timeout))
+})
 
 async function remove (serviceId, timeout = 60) {
   /* Remove the service
@@ -521,7 +561,9 @@ async function remove (serviceId, timeout = 60) {
 
 yargs.command('state <service_id> [options]', 'Get a service state', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to read'})
-}, async (argv) => { console.log(await state(argv.service_id)) })
+}, async (argv) => {
+  console.log(await state(argv.service_id))
+})
 
 async function state (serviceId = '') {
   /* Retrieves the service state information.
@@ -538,8 +580,29 @@ yargs.usage(`$0 <cmd> [args]
  RANCHER_URL
  optional: SSL_VERIFY=false`)
 yargs.demandCommand(1, 'You need at least one command before moving on')
-//
-// Provide commandline-cli if started from commandline
+
 if (require.main === module) {
+  // Provide commandline-cli if started from commandline
   yargs.help().argv
+} else {
+  // Provide exports if included as dependency
+  module.exports = {
+    activate,
+    deactivate,
+    deactivateEnv,
+    deleteEnv,
+    deleteRequest,
+    execute,
+    idOf,
+    idOfEnv,
+    query,
+    remove,
+    restartService,
+    rollback,
+    startContainers,
+    startService,
+    state,
+    stopService,
+    upgrade
+  }
 }
