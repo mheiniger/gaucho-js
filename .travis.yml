@@ -1,0 +1,23 @@
+sudo: false
+
+language: node_js
+
+node_js:
+  - "10"
+
+#branches:
+#  only:
+#    - master
+#    - /pr\//
+#    - /^\d+\.\d+\.\d+$/
+
+services:
+  - docker
+
+#install:
+#  - docker build . --tag=gauchojs
+
+script:
+  -
+  - bin/travis/upload_docker_image.sh cachinator
+  - bin/travis/deploy_with_rancher.sh cachinator

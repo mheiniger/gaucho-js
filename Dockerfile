@@ -7,7 +7,7 @@ COPY package-lock.json /app/package-lock.json
 
 RUN npm install
 
-COPY services.js /app/gaucho
+COPY gaucho.js /app/gaucho
 RUN chmod +x /app/gaucho
 
 ENTRYPOINT ["/app/gaucho"]

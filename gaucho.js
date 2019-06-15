@@ -110,7 +110,7 @@ async function query (serviceId = '') {
     will be retrieved.
     */
   const r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-  printJson(r)
+  printJson(r.data)
 }
 
 //
@@ -143,7 +143,7 @@ yargs.command('id_of_env <name>', 'Converts a environment name into an ID', (yar
 
 async function idOfEnv (name = '') {
   const environment = await getRequest((`${HOST}/project?name=${name}`))
-  return environment['data'][0]['id']
+  return environment.data['data'][0]['id']
 }
 
 //
@@ -254,18 +254,18 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
     upgradeStrategy.inServiceStrategy.startFirst = 'false'
   }
   r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-  currentServiceConfig = r
+  currentServiceConfig = r.data
   if ((completePrevious && (currentServiceConfig.state === 'upgraded'))) {
     console.log('Previous service upgrade wasn\'t completed, completing it now...')
     await postRequest((`${(HOST + URL_SERVICE) + serviceId}?action=finishupgrade`), '')
     r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-    currentServiceConfig = r
+    currentServiceConfig = r.data
     sleepCount = 0
     while (((currentServiceConfig['state'] !== 'active') && (sleepCount < (timeout / 2)))) {
       console.log('Waiting for upgrade to finish...')
       await sleep(2)
       r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-      currentServiceConfig = r
+      currentServiceConfig = r.data
       sleepCount += 1
     }
   }
@@ -285,7 +285,7 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
   await postRequest(currentServiceConfig['actions']['upgrade'], upgradeStrategy)
   console.log(('Upgrade of %s service started!' % currentServiceConfig['name']))
   r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-  currentServiceConfig = r
+  currentServiceConfig = r.data
   console.log(('Service State \'%s.\'' % currentServiceConfig['state']))
   console.log('Waiting for upgrade to finish...')
   sleepCount = 0
@@ -293,7 +293,7 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
     console.log('.')
     await sleep(2)
     r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-    currentServiceConfig = r
+    currentServiceConfig = r.data
     sleepCount += 1
   }
   if ((sleepCount >= (timeout / 2))) {
@@ -305,14 +305,14 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
   if ((autoComplete && (currentServiceConfig['state'] === 'upgraded'))) {
     await postRequest((`${(HOST + URL_SERVICE) + serviceId}?action=finishupgrade`), '')
     r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-    currentServiceConfig = r
+    currentServiceConfig = r.data
     console.log('Auto Finishing Upgrade...')
     upgradedSleepCount = 0
     while (((currentServiceConfig['state'] !== 'active') && (upgradedSleepCount < (timeout / 2)))) {
       console.log('.')
       await sleep(2)
       r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-      currentServiceConfig = r
+      currentServiceConfig = r.data
       upgradedSleepCount += 1
     }
     if ((currentServiceConfig['state'] === 'active')) {
@@ -371,7 +371,7 @@ async function rollback (serviceId, timeout = 60) {
     */
   let currentServiceConfig, r, sleepCount
   r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-  currentServiceConfig = r
+  currentServiceConfig = r.data
   if ((currentServiceConfig['state'] !== 'upgraded')) {
     console.log(('Service cannot be updated due to its current state: %s' % currentServiceConfig['state']))
     process.exit(1)
@@ -379,7 +379,7 @@ async function rollback (serviceId, timeout = 60) {
   await postRequest(currentServiceConfig['actions']['rollback'], '')
   console.log(('Rollback of %s service started!' % currentServiceConfig['name']))
   r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-  currentServiceConfig = r
+  currentServiceConfig = r.data
   console.log(('Service State \'%s.\'' % currentServiceConfig['state']))
   console.log('Waiting for rollback to finish...')
   sleepCount = 0
@@ -387,7 +387,7 @@ async function rollback (serviceId, timeout = 60) {
     console.log('.')
     await sleep(2)
     r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-    currentServiceConfig = r
+    currentServiceConfig = r.data
     sleepCount += 1
   }
   if ((sleepCount >= (timeout / 2))) {
@@ -414,20 +414,21 @@ async function activate (serviceId, timeout = 60) {
     */
   let currentServiceConfig, r, sleepCount
   r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-  currentServiceConfig = r
-  if ((currentServiceConfig['state'] !== 'inactive')) {
-    console.log(('Service cannot be deactivated due to its current state: %s' % currentServiceConfig['state']))
+  currentServiceConfig = r.data
+  if (currentServiceConfig['state'] !== 'inactive') {
+    console.log('Service cannot be deactivated due to its current state: ' + currentServiceConfig['state'])
     process.exit(1)
   }
   await postRequest(currentServiceConfig['actions']['activate'], '')
   sleepCount = 0
-  while (((currentServiceConfig['state'] !== 'active') && (sleepCount < (timeout / 2)))) {
+  while ((currentServiceConfig['state'] !== 'active') && (sleepCount < (timeout / 2))) {
     console.log('Waiting for activation to finish...')
     await sleep(2)
     r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-    currentServiceConfig = r
+    currentServiceConfig = r.data
     sleepCount += 1
   }
+  return 'ok'
 }
 
 //
@@ -444,9 +445,9 @@ async function deactivate (serviceId, timeout = 60) {
     */
   let currentServiceConfig, r, sleepCount
   r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-  currentServiceConfig = r
-  if (((currentServiceConfig['state'] !== 'active') && (currentServiceConfig['state'] !== 'updating-active'))) {
-    console.log(('Service cannot be deactivated due to its current state: %s' % currentServiceConfig['state']))
+  currentServiceConfig = r.data
+  if ((currentServiceConfig['state'] !== 'active') && (currentServiceConfig['state'] !== 'updating-active')) {
+    console.log('Service cannot be deactivated due to its current state: ' + currentServiceConfig['state'])
     process.exit(1)
   }
   await postRequest(currentServiceConfig['actions']['deactivate'], '')
@@ -455,9 +456,10 @@ async function deactivate (serviceId, timeout = 60) {
     console.log('Waiting for deactivation to finish...')
     await sleep(2)
     r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-    currentServiceConfig = r
+    currentServiceConfig = r.data
     sleepCount += 1
   }
+  return 'ok'
 }
 
 //
@@ -475,7 +477,7 @@ async function deactivateEnv (environmentId, timeout = 60) {
     */
   let currentEnvironmentConfig, r, sleepCount
   r = await getRequest(((HOST + URL_ENVIRONMENT) + environmentId))
-  currentEnvironmentConfig = r
+  currentEnvironmentConfig = r.data
   if ((currentEnvironmentConfig['state'] !== 'active')) {
     console.log(('Environment cannot be deactivated due to its current state: %s' % currentEnvironmentConfig['state']))
     process.exit(1)
@@ -486,7 +488,7 @@ async function deactivateEnv (environmentId, timeout = 60) {
     console.log('Waiting for deactivation to finish...')
     await sleep(2)
     r = await getRequest(((HOST + URL_ENVIRONMENT) + environmentId))
-    currentEnvironmentConfig = r
+    currentEnvironmentConfig = r.data
     sleepCount += 1
   }
 }
@@ -506,7 +508,7 @@ async function deleteEnv (environmentId, timeout = 60) {
     */
   let currentEnvironmentConfig, r, sleepCount
   r = await getRequest(((HOST + URL_ENVIRONMENT) + environmentId))
-  currentEnvironmentConfig = r
+  currentEnvironmentConfig = r.data
   if ((currentEnvironmentConfig['state'] !== 'inactive')) {
     console.log(('Environment cannot be deactivated due to its current state: %s' % currentEnvironmentConfig['state']))
     process.exit(1)
@@ -517,7 +519,7 @@ async function deleteEnv (environmentId, timeout = 60) {
     console.log('Waiting for delete to finish...')
     await sleep(2)
     r = await getRequest(((HOST + URL_ENVIRONMENT) + environmentId))
-    currentEnvironmentConfig = r
+    currentEnvironmentConfig = r.data
     sleepCount += 1
   }
 }
@@ -538,7 +540,7 @@ async function remove (serviceId, timeout = 60) {
     */
   let currentServiceConfig, r, sleepCount
   r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-  currentServiceConfig = r
+  currentServiceConfig = r.data
   if ((currentServiceConfig['state'] !== 'inactive')) {
     console.log(('Service cannot be removed due to its current state: %s' % currentServiceConfig['state']))
     process.exit(1)
@@ -549,7 +551,7 @@ async function remove (serviceId, timeout = 60) {
     console.log('Waiting for remove to finish...')
     await sleep(2)
     r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-    currentServiceConfig = r
+    currentServiceConfig = r.data
     sleepCount += 1
   }
 }
