@@ -18,6 +18,4 @@ services:
 #  - docker build . --tag=gauchojs
 
 script:
-  -
-  - bin/travis/upload_docker_image.sh cachinator
-  - bin/travis/deploy_with_rancher.sh cachinator
+  - test/run-tests.sh
