@@ -15,6 +15,7 @@ services:
   - docker
 
 install:
+  - npm ci
   - npm install -g wait-port
 #  - docker build . --tag=gauchojs
 
