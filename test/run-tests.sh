@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
 
-docker run -d --restart=unless-stopped -p 8080:8080 rancher/server
+docker run -d --restart=unless-stopped -p 8081:8080 rancher/server
 
-wait-port 8080
+wait-port 8081
 
 #http://0.0.0.0:8080/v2-beta
 #http://0.0.0.0:8080/v1
 cd test
-export RANCHER_URL=http://localhost:8080
+export RANCHER_URL=http://localhost:8081
 
 if [[ ! -f ./rancher ]]; then
     RANCHER_CLI_VERSION="v0.6.1"
