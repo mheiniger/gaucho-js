@@ -3,6 +3,8 @@
 
 docker run -d --restart=unless-stopped -p 8080:8080 rancher/server
 
+wait-port 8080
+
 #http://0.0.0.0:8080/v2-beta
 #http://0.0.0.0:8080/v1
 cd test

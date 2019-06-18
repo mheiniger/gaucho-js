@@ -14,7 +14,8 @@ node_js:
 services:
   - docker
 
-#install:
+install:
+  - npm install -g wait-port
 #  - docker build . --tag=gauchojs
 
 script:
