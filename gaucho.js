@@ -40,11 +40,14 @@ if (HOST && HOST.search(/\/v1$/) < 0) {
 }
 
 // HTTP
-async function getRequest (url) {
+async function getRequest (url, options = {}) {
   try {
     return await requests.get(url, {'auth': {username: USERNAME, password: PASSWORD}})
   } catch (err) {
-    return console.log(err, err.message)
+    if (!options.silentError === true) {
+      console.log(err, err.message)
+    }
+    return 
   }
 }
 
@@ -111,6 +114,32 @@ async function query (serviceId = '') {
     */
   const r = await getRequest(((HOST + URL_SERVICE) + serviceId))
   printJson(r.data)
+}
+
+//
+// Wait for Rancher to come up
+//
+yargs.command('wait_for_rancher [options]', 'Wait for Rancher to start with an active project', (yargs) => {
+  yargs.positional('timeout', {describe: 'How many seconds to wait until waiting fails'})
+}, async (argv) => {
+  console.log(await waitForRancher(argv.timeout))
+})
+
+async function waitForRancher (timeout = 120) {
+  let sleepCount = 0
+  let firstProjecctState, r
+  while ((firstProjecctState !== 'active') && (sleepCount < (timeout / 2))) {
+    console.log('Waiting for rancher to start...')
+    await sleep(2)
+    r = await getRequest(HOST + URL_ENVIRONMENT, {silentError: true})
+    if (r && r.data && r.data.data && r.data.data[0] && r.data.data[0].state) {
+      firstProjecctState = r.data.data[0].state
+      console.log('First projects state is:' + firstProjecctState)
+    }
+    
+    sleepCount += 1
+  }
+  return 'rancher started'
 }
 
 //
@@ -571,7 +600,7 @@ async function state (serviceId = '') {
   /* Retrieves the service state information.
     */
   const r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-  console.log(r['state'])
+  console.log(r.data['state'])
 }
 
 
