@@ -15,7 +15,7 @@ if [[ ! -f ./rancher ]]; then
     curl -sL https://github.com/rancher/cli/releases/download/${RANCHER_CLI_VERSION}/rancher-linux-amd64-${RANCHER_CLI_VERSION}.tar.gz | tar -xz && mv rancher-${RANCHER_CLI_VERSION}/rancher ./
 fi
 
-./rancher up -d
+./rancher -w --wait-state active up -d
 
 cd ..
 #./gaucho.js query #| jq .statusText
