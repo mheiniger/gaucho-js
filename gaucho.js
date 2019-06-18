@@ -494,7 +494,7 @@ async function deactivate (serviceId, timeout = 60) {
 //
 // Deactivate a env.
 //
-yargs.command('deactivateEnv <environment_id> [options]', 'Deactivate a env.', (yargs) => {
+yargs.command('deactivate_env <environment_id> [options]', 'Deactivate a env.', (yargs) => {
   yargs.positional('environment_id', {describe: 'The ID of the environment to deactivate.'})
     .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
 }, async (argv) => {

@@ -16,25 +16,22 @@ fi
 ./rancher -w --wait-state active up -d
 
 cd ..
-#./gaucho.js query #| jq .statusText
+
 serviceId=$(./gaucho.js id_of Test-Service)
 ./gaucho.js query $serviceId
 ./gaucho.js deactivate $serviceId
 ./gaucho.js activate $serviceId
 
-envId=$(./gaucho.js id_of_env Default)
-./gaucho.js deactivateEnv $envId
-# ./gaucho.js deleteEnv
-# ./gaucho.js deleteRequest
 # ./gaucho.js execute
-# 
-# 
-# ./gaucho.js query | grep statusText
-# ./gaucho.js remove | grep statusText
-# ./gaucho.js restartService | grep statusText
-# ./gaucho.js rollback | grep statusText
-# ./gaucho.js startContainers | grep statusText
-# ./gaucho.js startService | grep statusText
-# ./gaucho.js state | grep statusText
-# ./gaucho.js stopService | grep statusText
+# ./gaucho.js remove
+# ./gaucho.js restart_service
+# ./gaucho.js rollback
+# ./gaucho.js start_containers
+# ./gaucho.js start_service
+# ./gaucho.js state
+# ./gaucho.js stop_service
 # ./gaucho.js upgrade
+
+envId=$(./gaucho.js id_of_env Default)
+./gaucho.js deactivate_env $envId
+# ./gaucho.js deleteEnv
