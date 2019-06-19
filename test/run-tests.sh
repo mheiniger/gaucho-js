@@ -18,9 +18,10 @@ fi
 cd ..
 
 serviceId=$(./gaucho.js id_of Test-Service)
-./gaucho.js query $serviceId
+./gaucho.js query $serviceId | grep 'name:'
 ./gaucho.js deactivate $serviceId
 ./gaucho.js activate $serviceId
+./gaucho.js upgrade
 
 # ./gaucho.js execute
 # ./gaucho.js remove
@@ -30,7 +31,7 @@ serviceId=$(./gaucho.js id_of Test-Service)
 # ./gaucho.js start_service
 # ./gaucho.js state
 # ./gaucho.js stop_service
-# ./gaucho.js upgrade
+# 
 
 envId=$(./gaucho.js id_of_env Default)
 ./gaucho.js deactivate_env $envId

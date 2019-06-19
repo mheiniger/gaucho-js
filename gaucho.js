@@ -54,9 +54,9 @@ async function getRequest (url, options = {}) {
 async function postRequest (url, data = '') {
   try {
     if (data) {
-      return await requests.post(url, {'data': JSON.stringify(data), 'auth': {username: USERNAME, password: PASSWORD}})
+      return await requests.post(url, data, {'auth': {username: USERNAME, password: PASSWORD}})
     } else {
-      return await requests.post(url, {'data': '', 'auth': {username: USERNAME, password: PASSWORD}})
+      return await requests.post(url, {}, {'auth': {username: USERNAME, password: PASSWORD}})
     }
   } catch (err) {
     return console.log(err, err.message)
@@ -71,7 +71,7 @@ async function deleteRequest (url, data = '') {
         'auth': {username: USERNAME, password: PASSWORD}
       })
     } else {
-      return await requests.delete(url, {'data': '', 'auth': {username: USERNAME, password: PASSWORD}})
+      return await requests.delete(url, {'auth': {username: USERNAME, password: PASSWORD}})
     }
   } catch (err) {
     return console.log(err, err.message)
@@ -255,7 +255,7 @@ yargs.command('upgrade <service_id> [options]', 'Upgrades the service.', (yargs)
     .positional('replace_env_value', {describe: 'The value of the environment variable to be replaced (requires replace_env_name).'})
     .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
 }, async (argv) => {
-  console.log(await upgrade(argv.service_id, argv.start_first, argv.complete_previous, argv.imageUuid, argv.auto_complete, argv.batch_size, argv.interval_millis, argv.replace_env_name, argv.replace_env_value, argv.timeout))
+  await upgrade(argv.service_id, argv.start_first, argv.complete_previous, argv.imageUuid, argv.auto_complete, argv.batch_size, argv.interval_millis, argv.replace_env_name, argv.replace_env_value, argv.timeout)
 })
 
 async function upgrade (serviceId, startFirst = true, completePrevious = false, imageUuid = null, autoComplete = false, batchSize = 1, intervalMillis = 10000, replaceEnvName = null, replaceEnvValue = null, timeout = 60) {
@@ -284,9 +284,9 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
   }
   r = await getRequest(((HOST + URL_SERVICE) + serviceId))
   currentServiceConfig = r.data
-  if ((completePrevious && (currentServiceConfig.state === 'upgraded'))) {
+  if (completePrevious && (currentServiceConfig.state === 'upgraded')) {
     console.log('Previous service upgrade wasn\'t completed, completing it now...')
-    await postRequest((`${(HOST + URL_SERVICE) + serviceId}?action=finishupgrade`), '')
+    await postRequest(`${(HOST + URL_SERVICE) + serviceId}?action=finishupgrade`, '')
     r = await getRequest(((HOST + URL_SERVICE) + serviceId))
     currentServiceConfig = r.data
     sleepCount = 0
@@ -298,40 +298,40 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
       sleepCount += 1
     }
   }
-  if ((currentServiceConfig['state'] !== 'active')) {
-    console.log(('Service cannot be updated due to its current state: %s' % currentServiceConfig['state']))
+  if (currentServiceConfig['state'] !== 'active') {
+    console.log('Service cannot be updated due to its current state: ' + currentServiceConfig['state'])
     process.exit(1)
   }
   upgradeStrategy['inServiceStrategy']['launchConfig'] = currentServiceConfig['launchConfig']
-  if (((replaceEnvName !== null) && (replaceEnvValue !== null))) {
-    console.log(('Replacing environment variable %s from %s to %s' % [replaceEnvName, upgradeStrategy['inServiceStrategy']['launchConfig']['environment'][replaceEnvName], replaceEnvValue]))
+  if ((replaceEnvName !== null) && (replaceEnvValue !== null)) {
+    console.log(`Replacing environment variable ${replaceEnvName} from ${upgradeStrategy['inServiceStrategy']['launchConfig']['environment'][replaceEnvName]} to ${replaceEnvValue}`)
     upgradeStrategy['inServiceStrategy']['launchConfig']['environment'][replaceEnvName] = replaceEnvValue
   }
-  if ((imageUuid !== null)) {
+  if (imageUuid !== null) {
     upgradeStrategy['inServiceStrategy']['launchConfig']['imageUuid'] = imageUuid
-    console.log(('New Image: %s' % upgradeStrategy['inServiceStrategy']['launchConfig']['imageUuid']))
+    console.log('New Image: ' + upgradeStrategy['inServiceStrategy']['launchConfig']['imageUuid'])
   }
   await postRequest(currentServiceConfig['actions']['upgrade'], upgradeStrategy)
-  console.log(('Upgrade of %s service started!' % currentServiceConfig['name']))
+  console.log(`Upgrade of ${currentServiceConfig['name']} service started!`)
   r = await getRequest(((HOST + URL_SERVICE) + serviceId))
   currentServiceConfig = r.data
-  console.log(('Service State \'%s.\'' % currentServiceConfig['state']))
+  console.log(`Service State '${currentServiceConfig['state']}'`)
   console.log('Waiting for upgrade to finish...')
   sleepCount = 0
-  while (((currentServiceConfig['state'] !== 'upgraded') && (sleepCount < (timeout / 2)))) {
+  while ((currentServiceConfig['state'] !== 'upgraded') && (sleepCount < (timeout / 2))) {
     console.log('.')
     await sleep(2)
     r = await getRequest(((HOST + URL_SERVICE) + serviceId))
     currentServiceConfig = r.data
     sleepCount += 1
   }
-  if ((sleepCount >= (timeout / 2))) {
+  if (sleepCount >= (timeout / 2)) {
     console.log('Upgrading take to much time! Check Rancher UI for more details.')
     process.exit(1)
   } else {
     console.log('Upgraded')
   }
-  if ((autoComplete && (currentServiceConfig['state'] === 'upgraded'))) {
+  if (autoComplete && (currentServiceConfig['state'] === 'upgraded')) {
     await postRequest((`${(HOST + URL_SERVICE) + serviceId}?action=finishupgrade`), '')
     r = await getRequest(((HOST + URL_SERVICE) + serviceId))
     currentServiceConfig = r.data
