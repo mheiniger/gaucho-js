@@ -21,7 +21,7 @@ serviceId=$(./gaucho.js id_of Test-Service)
 ./gaucho.js query $serviceId | grep 'name:'
 ./gaucho.js deactivate $serviceId
 ./gaucho.js activate $serviceId
-./gaucho.js upgrade
+./gaucho.js upgrade $serviceId
 
 # ./gaucho.js execute
 # ./gaucho.js remove

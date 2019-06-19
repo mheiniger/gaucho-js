@@ -112,7 +112,7 @@ async function query (serviceId = '') {
     If you don't specify an ID, data for all services
     will be retrieved.
     */
-  const r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  const r = await getRequest(HOST + URL_SERVICE + serviceId)
   printJson(r.data)
 }
 
@@ -171,7 +171,7 @@ yargs.command('id_of_env <name>', 'Converts a environment name into an ID', (yar
 })
 
 async function idOfEnv (name = '') {
-  const environment = await getRequest((`${HOST}/project?name=${name}`))
+  const environment = await getRequest(`${HOST}/project?name=${name}`)
   return environment.data['data'][0]['id']
 }
 
@@ -181,7 +181,7 @@ async function idOfEnv (name = '') {
 yargs.command('start_containers <service_id>', 'Start containers within a service (e.g. for Start Once containers).', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to start the containers of.'})
 }, async (argv) => {
-  console.log(await startContainers(argv.service_id))
+  await startContainers(argv.service_id)
 })
 
 function startContainers (serviceId) {
@@ -194,14 +194,14 @@ function startContainers (serviceId) {
 yargs.command('start_service <service_id>', 'Start containers within a service (e.g. for Start Once containers).', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to start the containers of.'})
 }, async (argv) => {
-  console.log(await startService(argv.service_id))
+  await startService(argv.service_id)
 })
 
 async function startService (serviceId) {
-  const containers = await getRequest((`${(HOST + URL_SERVICE) + serviceId}/instances`)).data
+  const containers = await getRequest(`${(HOST + URL_SERVICE) + serviceId}/instances`).data
   containers.forEach(async (container) => {
     const startUrl = container.actions.start
-    console.log(('Starting container %s with url %s' % [container['name'], startUrl]))
+    console.log(`Starting container ${container['name']} with url ${startUrl}`)
     await postRequest(startUrl, '')
   })
 }
@@ -212,14 +212,14 @@ async function startService (serviceId) {
 yargs.command('stop_service <service_id>', 'Stop containers within a service.', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to stop the containers of.'})
 }, async (argv) => {
-  console.log(await stopService(argv.service_id))
+  await stopService(argv.service_id)
 })
 
 async function stopService (serviceId) {
   const containers = await getRequest((`${(HOST + URL_SERVICE) + serviceId}/instances`)).data
   containers.forEach(async (container) => {
     const stopUrl = container['actions']['stop']
-    console.log(('Stopping container %s with url %s' % [container['name'], stopUrl]))
+    console.log(`Stopping container ${container['name']} with url ${stopUrl}`)
     await postRequest(stopUrl, '')
   })
 }
@@ -231,7 +231,7 @@ async function stopService (serviceId) {
 yargs.command('restart_service <service_id>', 'Restart containers within a service.', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to restart the containers of.'})
 }, async (argv) => {
-  console.log(await restartService(argv.service_id))
+  await restartService(argv.service_id)
 })
 
 async function restartService (serviceId) {
@@ -282,18 +282,18 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
   } else {
     upgradeStrategy.inServiceStrategy.startFirst = 'false'
   }
-  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  r = await getRequest(HOST + URL_SERVICE + serviceId)
   currentServiceConfig = r.data
   if (completePrevious && (currentServiceConfig.state === 'upgraded')) {
     console.log('Previous service upgrade wasn\'t completed, completing it now...')
     await postRequest(`${(HOST + URL_SERVICE) + serviceId}?action=finishupgrade`, '')
-    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    r = await getRequest(HOST + URL_SERVICE + serviceId)
     currentServiceConfig = r.data
     sleepCount = 0
-    while (((currentServiceConfig['state'] !== 'active') && (sleepCount < (timeout / 2)))) {
+    while ((currentServiceConfig['state'] !== 'active') && (sleepCount < (timeout / 2))) {
       console.log('Waiting for upgrade to finish...')
       await sleep(2)
-      r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+      r = await getRequest(HOST + URL_SERVICE + serviceId)
       currentServiceConfig = r.data
       sleepCount += 1
     }
@@ -313,7 +313,7 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
   }
   await postRequest(currentServiceConfig['actions']['upgrade'], upgradeStrategy)
   console.log(`Upgrade of ${currentServiceConfig['name']} service started!`)
-  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  r = await getRequest(HOST + URL_SERVICE + serviceId)
   currentServiceConfig = r.data
   console.log(`Service State '${currentServiceConfig['state']}'`)
   console.log('Waiting for upgrade to finish...')
@@ -321,7 +321,7 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
   while ((currentServiceConfig['state'] !== 'upgraded') && (sleepCount < (timeout / 2))) {
     console.log('.')
     await sleep(2)
-    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    r = await getRequest(HOST + URL_SERVICE + serviceId)
     currentServiceConfig = r.data
     sleepCount += 1
   }
@@ -332,15 +332,15 @@ async function upgrade (serviceId, startFirst = true, completePrevious = false, 
     console.log('Upgraded')
   }
   if (autoComplete && (currentServiceConfig['state'] === 'upgraded')) {
-    await postRequest((`${(HOST + URL_SERVICE) + serviceId}?action=finishupgrade`), '')
-    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    await postRequest((`${HOST + URL_SERVICE + serviceId}?action=finishupgrade`), '')
+    r = await getRequest(HOST + URL_SERVICE + serviceId)
     currentServiceConfig = r.data
     console.log('Auto Finishing Upgrade...')
     upgradedSleepCount = 0
-    while (((currentServiceConfig['state'] !== 'active') && (upgradedSleepCount < (timeout / 2)))) {
+    while ((currentServiceConfig['state'] !== 'active') && (upgradedSleepCount < (timeout / 2))) {
       console.log('.')
       await sleep(2)
-      r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+      r = await getRequest(HOST + URL_SERVICE + serviceId)
       currentServiceConfig = r.data
       upgradedSleepCount += 1
     }
@@ -360,7 +360,7 @@ yargs.command('execute <service_id> [command]', 'Execute remote command on conta
   yargs.positional('service_id', {describe: 'The ID of the service to execute on'})
     .positional('command', {describe: 'The command to execute'})
 }, async (argv) => {
-  console.log(await execute(argv.service_id, argv.command))
+  await execute(argv.service_id, argv.command)
 })
 
 
@@ -375,13 +375,13 @@ async function execute (serviceId, command) {
     process.exit(1)
   }
   const executionUrl = containers[0]['actions']['execute']
-  console.log(('Executing \'%s\' on container \'%s\'' % [command, containers[0]['name']]))
+  console.log(`Executing '${command}' on container '${containers[0]['name']}'`)
   const payload = {'attachStdin': true, 'attachStdout': true, 'command': ['/bin/sh', '-c'], 'tty': true}
   payload['command'].append(command)
   const intermediate = await postRequest(executionUrl, payload)
   const wsToken = intermediate['token']
   const wsUrl = (`${intermediate['url']}?token=${wsToken}`)
-  console.log(('> \n%s' % ws(wsUrl)))
+  console.log(`> \n${ws(wsUrl)}`)
   console.log('DONE')
 }
 
@@ -392,30 +392,30 @@ yargs.command('rollback <service_id> [options]', 'Rollback the service.', (yargs
   yargs.positional('service_id', {describe: 'The ID of the service to execute on'})
     .positional('timeout', {describe: 'How many seconds to wait until an rollback fails'})
 }, async (argv) => {
-  console.log(await rollback(argv.service_id, argv.timeout))
+  await rollback(argv.service_id, argv.timeout)
 })
 
 async function rollback (serviceId, timeout = 60) {
   /* Performs a service rollback
     */
   let currentServiceConfig, r, sleepCount
-  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  r = await getRequest(HOST + URL_SERVICE + serviceId)
   currentServiceConfig = r.data
   if ((currentServiceConfig['state'] !== 'upgraded')) {
-    console.log(('Service cannot be updated due to its current state: %s' % currentServiceConfig['state']))
+    console.log(`Service cannot be updated due to its current state: ${currentServiceConfig['state']}`)
     process.exit(1)
   }
   await postRequest(currentServiceConfig['actions']['rollback'], '')
-  console.log(('Rollback of %s service started!' % currentServiceConfig['name']))
-  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  console.log(`Rollback of ${currentServiceConfig['name']} service started!`)
+  r = await getRequest(HOST + URL_SERVICE + serviceId)
   currentServiceConfig = r.data
-  console.log(('Service State \'%s.\'' % currentServiceConfig['state']))
+  console.log(`Service State '${currentServiceConfig['state']}.'`)
   console.log('Waiting for rollback to finish...')
   sleepCount = 0
-  while (((currentServiceConfig['state'] !== 'active') && (sleepCount < (timeout / 2)))) {
+  while ((currentServiceConfig['state'] !== 'active') && (sleepCount < (timeout / 2))) {
     console.log('.')
     await sleep(2)
-    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    r = await getRequest(HOST + URL_SERVICE + serviceId)
     currentServiceConfig = r.data
     sleepCount += 1
   }
@@ -435,14 +435,14 @@ yargs.command('activate <service_id> [options]', 'Activate a service.', (yargs) 
   yargs.positional('service_id', {describe: 'The ID of the service to activate.'})
     .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
 }, async (argv) => {
-  console.log(await activate(argv.service_id, argv.timeout))
+  await activate(argv.service_id, argv.timeout)
 })
 
 async function activate (serviceId, timeout = 60) {
   /* Activate the containers of a given service.
     */
   let currentServiceConfig, r, sleepCount
-  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  r = await getRequest(HOST + URL_SERVICE + serviceId)
   currentServiceConfig = r.data
   if (currentServiceConfig['state'] !== 'inactive') {
     console.log('Service cannot be deactivated due to its current state: ' + currentServiceConfig['state'])
@@ -453,11 +453,10 @@ async function activate (serviceId, timeout = 60) {
   while ((currentServiceConfig['state'] !== 'active') && (sleepCount < (timeout / 2))) {
     console.log('Waiting for activation to finish...')
     await sleep(2)
-    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    r = await getRequest(HOST + URL_SERVICE + serviceId)
     currentServiceConfig = r.data
     sleepCount += 1
   }
-  return 'ok'
 }
 
 //
@@ -466,14 +465,14 @@ yargs.command('deactivate <service_id> [options]', 'Deactivate a service.', (yar
   yargs.positional('service_id', {describe: 'The ID of the service to deactivate.'})
     .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
 }, async (argv) => {
-  console.log(await deactivate(argv.service_id, argv.timeout))
+  await deactivate(argv.service_id, argv.timeout)
 })
 
 async function deactivate (serviceId, timeout = 60) {
   /* Stops the containers of a given service. (e.g. for maintenance purposes)
     */
   let currentServiceConfig, r, sleepCount
-  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  r = await getRequest(HOST + URL_SERVICE + serviceId)
   currentServiceConfig = r.data
   if ((currentServiceConfig['state'] !== 'active') && (currentServiceConfig['state'] !== 'updating-active')) {
     console.log('Service cannot be deactivated due to its current state: ' + currentServiceConfig['state'])
@@ -481,14 +480,13 @@ async function deactivate (serviceId, timeout = 60) {
   }
   await postRequest(currentServiceConfig['actions']['deactivate'], '')
   sleepCount = 0
-  while (((currentServiceConfig['state'] !== 'inactive') && (sleepCount < (timeout / 2)))) {
+  while ((currentServiceConfig['state'] !== 'inactive') && (sleepCount < (timeout / 2))) {
     console.log('Waiting for deactivation to finish...')
     await sleep(2)
-    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    r = await getRequest(HOST + URL_SERVICE + serviceId)
     currentServiceConfig = r.data
     sleepCount += 1
   }
-  return 'ok'
 }
 
 //
@@ -498,25 +496,25 @@ yargs.command('deactivate_env <environment_id> [options]', 'Deactivate a env.', 
   yargs.positional('environment_id', {describe: 'The ID of the environment to deactivate.'})
     .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
 }, async (argv) => {
-  console.log(await deactivateEnv(argv.environment_id, argv.timeout))
+  await deactivateEnv(argv.environment_id, argv.timeout)
 })
 
 async function deactivateEnv (environmentId, timeout = 60) {
   /* Stops the environment
     */
   let currentEnvironmentConfig, r, sleepCount
-  r = await getRequest(((HOST + URL_ENVIRONMENT) + environmentId))
+  r = await getRequest(HOST + URL_ENVIRONMENT + environmentId)
   currentEnvironmentConfig = r.data
-  if ((currentEnvironmentConfig['state'] !== 'active')) {
-    console.log(('Environment cannot be deactivated due to its current state: %s' % currentEnvironmentConfig['state']))
+  if (currentEnvironmentConfig['state'] !== 'active') {
+    console.log(`Environment cannot be deactivated due to its current state: ${currentEnvironmentConfig['state']}`)
     process.exit(1)
   }
   await postRequest(currentEnvironmentConfig['actions']['deactivate'], '')
   sleepCount = 0
-  while (((currentEnvironmentConfig['state'] !== 'inactive') && (sleepCount < (timeout / 2)))) {
+  while ((currentEnvironmentConfig['state'] !== 'inactive') && (sleepCount < (timeout / 2))) {
     console.log('Waiting for deactivation to finish...')
     await sleep(2)
-    r = await getRequest(((HOST + URL_ENVIRONMENT) + environmentId))
+    r = await getRequest(HOST + URL_ENVIRONMENT + environmentId)
     currentEnvironmentConfig = r.data
     sleepCount += 1
   }
@@ -529,25 +527,25 @@ yargs.command('delete_env <environment_id> [options]', 'Delete a env.', (yargs) 
   yargs.positional('environment_id', {describe: 'The ID of the environment to delete.'})
     .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
 }, async (argv) => {
-  console.log(await deleteEnv(argv.environment_id, argv.timeout))
+  await deleteEnv(argv.environment_id, argv.timeout)
 })
 
 async function deleteEnv (environmentId, timeout = 60) {
   /* Stops the environment
     */
   let currentEnvironmentConfig, r, sleepCount
-  r = await getRequest(((HOST + URL_ENVIRONMENT) + environmentId))
+  r = await getRequest(HOST + URL_ENVIRONMENT + environmentId)
   currentEnvironmentConfig = r.data
   if ((currentEnvironmentConfig['state'] !== 'inactive')) {
-    console.log(('Environment cannot be deactivated due to its current state: %s' % currentEnvironmentConfig['state']))
+    console.log(`Environment cannot be deactivated due to its current state: ${currentEnvironmentConfig['state']}`)
     process.exit(1)
   }
   await deleteRequest(currentEnvironmentConfig['actions']['delete'], '')
   sleepCount = 0
-  while (((currentEnvironmentConfig['state'] !== 'removed') && (sleepCount < (timeout / 2)))) {
+  while ((currentEnvironmentConfig['state'] !== 'removed') && (sleepCount < (timeout / 2))) {
     console.log('Waiting for delete to finish...')
     await sleep(2)
-    r = await getRequest(((HOST + URL_ENVIRONMENT) + environmentId))
+    r = await getRequest(HOST + URL_ENVIRONMENT + environmentId)
     currentEnvironmentConfig = r.data
     sleepCount += 1
   }
@@ -561,25 +559,25 @@ yargs.command('remove <service_id> [options]', 'Deactivate a env.', (yargs) => {
   yargs.positional('service_id', {describe: 'The ID of the service to remove.'})
     .positional('timeout', {describe: 'How many seconds to wait until an upgrade fails'})
 }, async (argv) => {
-  console.log(await remove(argv.service_id, argv.timeout))
+  await remove(argv.service_id, argv.timeout)
 })
 
 async function remove (serviceId, timeout = 60) {
   /* Remove the service
     */
   let currentServiceConfig, r, sleepCount
-  r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+  r = await getRequest(HOST + URL_SERVICE + serviceId)
   currentServiceConfig = r.data
   if ((currentServiceConfig['state'] !== 'inactive')) {
-    console.log(('Service cannot be removed due to its current state: %s' % currentServiceConfig['state']))
+    console.log(`Service cannot be removed due to its current state: ${currentServiceConfig['state']}`)
     process.exit(1)
   }
   await postRequest(currentServiceConfig['actions']['remove'], '')
   sleepCount = 0
-  while (((currentServiceConfig['state'] !== 'removed') && (sleepCount < (timeout / 2)))) {
+  while ((currentServiceConfig['state'] !== 'removed') && (sleepCount < (timeout / 2))) {
     console.log('Waiting for remove to finish...')
     await sleep(2)
-    r = await getRequest(((HOST + URL_SERVICE) + serviceId))
+    r = await getRequest(HOST + URL_SERVICE + serviceId)
     currentServiceConfig = r.data
     sleepCount += 1
   }
@@ -599,8 +597,8 @@ yargs.command('state <service_id> [options]', 'Get a service state', (yargs) => 
 async function state (serviceId = '') {
   /* Retrieves the service state information.
     */
-  const r = await getRequest(((HOST + URL_SERVICE) + serviceId))
-  console.log(r.data['state'])
+  const r = await getRequest(HOST + URL_SERVICE + serviceId)
+  return(r.data['state'])
 }
 
 
