@@ -1,6 +1,6 @@
 {
   "name": "rancher-gaucho",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "A JS version of etlweather/gaucho Rancher 1.x commandline scripts",
   "main": "gaucho.js",
   "scripts": {
