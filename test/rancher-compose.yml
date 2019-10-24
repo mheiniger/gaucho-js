@@ -1,0 +1,5 @@
+version: '2'
+services:
+  Test-Service:
+    scale: 0
+    start_on_create: true

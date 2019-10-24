@@ -1,8 +1,8 @@
-Gaucho
+GauchoJS
 ===========================================
 
-Gaucho is simply some Python scripts to access the
-[Rancher](https://github.com/rancher/rancher)'s API to perform tasks which
+Gaucho is simply some Nodejs scripts to access the
+[Rancher 1.x](https://github.com/rancher/rancher)'s API to perform tasks which
 I need to have executed through my deployment workflow.
 
 At this point, it does not contain much but it might grow as I get more
@@ -12,13 +12,16 @@ Contributions are welcome if you want to use it and add to it.
 
 ## Usage
 
-Gaucho can be run directly on a command line provided you have Python installed
-as well as the dependencies listed below.
+Gaucho can be run directly on a command line provided you have Nodejs installed.
+
+```
+npm install -g rancher-gaucho
+``` 
 
 It can also be run as a Docker container:
 
 ```
-docker run --rm -it etlweather/gaucho query 1s245
+docker run --rm -it mheiniger/gaucho query 1s245
 ```
 
 ### Rancher Host, Access Key and Secret
@@ -63,7 +66,7 @@ for more information on this feature.
 ### query
 
 ```
-Usage: ./services.py query [<service_id>]
+Usage: ./gaucho.js query [<service_id>]
 
 Retrieves the service information.
 
@@ -79,7 +82,7 @@ Options:
 Retrieves the ID of a service given its name.
 
 ```
- $ ./services.py id_of cassandra
+ $ ./gaucho.js id_of cassandra
 1s130
  $
 ```
@@ -135,7 +138,7 @@ Required Arguments:
 ### upgrade
 
 ```
-Usage: ./services.py upgrade <service_id> [<start_first>] [<complete_previous>] [<imageUuid>] [<auto_complete>] [<batch_size>] [<interval_millis>] [<replace_env_name>] [<replace_env_value>]
+Usage: ./gaucho.js upgrade <service_id> [<start_first>] [<complete_previous>] [<imageUuid>] [<auto_complete>] [<batch_size>] [<interval_millis>] [<replace_env_name>] [<replace_env_value>]
 
 Upgrades a service
 
@@ -171,7 +174,7 @@ Options:
 ### rollback
 
 ```
-Usage: ./services.py rollback <service_id>
+Usage: ./gaucho.js rollback <service_id>
 
 Rolls back service
 

@@ -1,0 +1,22 @@
+sudo: false
+
+language: node_js
+
+node_js:
+  - "10"
+
+#branches:
+#  only:
+#    - master
+#    - /pr\//
+#    - /^\d+\.\d+\.\d+$/
+
+services:
+  - docker
+
+install:
+  - npm ci
+#  - docker build . --tag=gauchojs
+
+script:
+  - test/run-tests.sh

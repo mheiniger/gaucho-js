@@ -1,13 +1,13 @@
-FROM python:2.7
+FROM node:10-alpine
 
 WORKDIR /app
 
-RUN pip install \
-        requests==2.18.4 \
-        baker==1.3 \
-        websocket-client==0.44.0
+COPY package.json /app/package.json
+COPY package-lock.json /app/package-lock.json
 
-COPY services.py /app/gaucho
+RUN npm install
+
+COPY gaucho.js /app/gaucho
 RUN chmod +x /app/gaucho
 
 ENTRYPOINT ["/app/gaucho"]
